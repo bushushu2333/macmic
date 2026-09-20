@@ -1,0 +1,6 @@
+torch @ https://download.pytorch.org/whl/cpu/torch-2.14.0%2Bcpu-cp311-cp311-win_amd64.whl#sha256=8e2c47c6556c7d5a85848634372bb2252907d411e9cad669c99406856d536eb5
+transformers==5.17.0
+numpy==2.4.6
+soundfile==0.14.0
+librosa==0.11.0
+huggingface-hub==1.32.0

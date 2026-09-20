@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict');
+const { runtimeConfig } = require('../src/helpers/platform');
+const win = runtimeConfig('win32', 'C:\\Users\\Test', 'D:\\Profiles\\Test\\AppData');
+assert.equal(win.root, 'D:\\Profiles\\Test\\AppData\\macmic');
+assert.equal(win.python, 'D:\\Profiles\\Test\\AppData\\macmic\\asr-runtime\\Scripts\\python.exe');
+assert.equal(win.backend, 'torch');
+assert.equal(win.model, 'Qwen3-ASR-1.7B-hf');
+const mac = runtimeConfig('darwin', '/home/test');
+assert.equal(mac.root, '/home/test/Library/Application Support/macmic');
+assert.equal(mac.backend, 'mlx');
+assert.ok(mac.python.endsWith('/bin/python'));
+console.log('PASS: platform paths, redirected Windows profiles and backend selection.');

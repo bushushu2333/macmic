@@ -1,0 +1,21 @@
+name: Windows local model smoke test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  model:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install local CPU runtime and model
+        run: ./scripts/Setup-Model.ps1
+      - name: Download public Qwen test audio
+        run: Invoke-WebRequest 'https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-ASR-Repo/asr_zh.wav' -OutFile "$env:RUNNER_TEMP\sample.wav"
+      - name: Check persistent worker, inference and invalid audio recovery
+        run: node scripts/test-local-asr.cjs "$env:RUNNER_TEMP\sample.wav"
