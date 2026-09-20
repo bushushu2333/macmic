@@ -1,0 +1,48 @@
+name: Attach verified Windows installer
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (for example v0.1.0)
+        required: true
+        type: string
+      run_id:
+        description: Successful Checks and Windows build run ID
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: write
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      BUILD_RUN_ID: ${{ inputs.run_id }}
+    steps:
+      - name: Verify artifact belongs to the release commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$BUILD_RUN_ID" > run.json
+          test "$(jq -r .conclusion run.json)" = success
+          test "$(jq -r .event run.json)" = push
+          test "$(jq -r .head_branch run.json)" = main
+          test "$(jq -r .head_repository.full_name run.json)" = "$GH_REPO"
+          test "$(jq -r .path run.json)" = .github/workflows/checks.yml
+          target=$(gh release view "$RELEASE_TAG" --json targetCommitish --jq .targetCommitish)
+          expected=$(gh api "repos/$GH_REPO/commits/$target" --jq .sha)
+          test "$(jq -r .head_sha run.json)" = "$expected"
+      - uses: actions/download-artifact@v4
+        with:
+          name: macmic-windows-x64
+          path: installer
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Attach installer
+        shell: bash
+        run: gh release upload "$RELEASE_TAG" installer/*-setup.exe
