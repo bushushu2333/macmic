@@ -9,7 +9,7 @@
     "dev": "concurrently -k -r \"npm:dev:renderer\" \"npm:dev:main\"",
     "dev:main": "cross-env NODE_ENV=development electron . --dev",
     "dev:renderer": "cd src && vite",
-    "postinstall": "electron-builder install-app-deps",
+    "postinstall": "node scripts/install-app-deps.cjs",
     "build:renderer": "cd src && vite build",
     "preview": "cd src && vite preview",
     "test": "node scripts/test-voice-session.cjs && node scripts/test-vocabulary.cjs && node scripts/test-platform.cjs",
@@ -168,7 +168,8 @@
           "download-windows-model.py"
         ]
       }
-    ]
+    ],
+    "npmRebuild": false
   },
   "repository": {
     "type": "git",
