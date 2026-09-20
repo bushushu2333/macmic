@@ -8,6 +8,22 @@ import wave
 from array import array
 
 
+def is_silence(pcm):
+    samples = array('h', pcm)
+    if sys.byteorder != 'little':
+        samples.byteswap()
+    return not samples or (max(abs(v) for v in samples) < 100 and sum(v * v for v in samples) / len(samples) < 256)
+
+
+def clean_transcript(text, hotwords):
+    # Some ASR models echo their entire vocabulary prompt on silence.
+    # Discard only an exact full-list echo; do not replace words in real speech.
+    normalize = lambda value: ''.join(c.lower() for c in value if c.isalnum())
+    if len(hotwords) >= 10 and normalize(text) == normalize(''.join(hotwords)):
+        return ''
+    return text.strip()
+
+
 def read_audio(path):
     with wave.open(path, 'rb') as audio:
         if (audio.getframerate(), audio.getnchannels(), audio.getsampwidth()) != (16000, 1, 2):
@@ -114,7 +130,7 @@ def serve():
                     if not isinstance(hotwords, list) or len(hotwords) > 150 or any(not isinstance(v, str) or len(v) > 80 for v in hotwords):
                         raise ValueError('词库格式无效')
                     started = time.monotonic()
-                    text = backend.transcribe(path, pcm, hotwords)
+                    text = '' if is_silence(pcm) else clean_transcript(backend.transcribe(path, pcm, hotwords), hotwords)
                     result = {'success': True, 'text': text, 'raw_text': text, 'language': 'zh-CN',
                               'duration': len(pcm) / 32000, 'elapsed': round(time.monotonic() - started, 3)}
                 else:

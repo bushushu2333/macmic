@@ -12,6 +12,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import qwen_server as worker
 
 class WorkerTests(unittest.TestCase):
+    def test_silence_and_full_vocabulary_echo(self):
+        self.assertTrue(worker.is_silence(b'\0' * 32000))
+        self.assertFalse(worker.is_silence(array('h', [2000] * 16000).tobytes()))
+        words = ['GPT', 'Codex', 'Python', 'JavaScript', 'React', 'GitHub', 'Docker', 'API', 'AI', 'macmic']
+        self.assertEqual(worker.clean_transcript(', '.join(words), words), '')
+        self.assertEqual(worker.clean_transcript('Use GPT and Codex.', words), 'Use GPT and Codex.')
+
     def test_partition_preserves_every_sample(self):
         pcm = array('h', [1] * (16000 * 65)).tobytes()
         parts = list(worker.split_pcm(pcm))
