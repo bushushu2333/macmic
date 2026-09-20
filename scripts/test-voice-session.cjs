@@ -48,7 +48,7 @@ function harness(options = {}) {
     module: { exports: {} }
   };
   const source = fs.readFileSync(require('path').join(__dirname, '../src/hooks/useVoiceSession.js'), 'utf8')
-    .replace(/^import .*;\n/gm, '').replace(/export /g, '');
+    .replace(/^import .*;\r?\n/gm, '').replace(/export /g, '');
   vm.runInNewContext(source + '\nmodule.exports = useVoiceSession;', context);
   const voice = context.module.exports();
   return { voice, calls, state: () => states[0].value,

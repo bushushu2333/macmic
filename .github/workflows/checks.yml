@@ -43,6 +43,11 @@ jobs:
       - run: pnpm build:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Check packaged SQLite binding
+        run: '& "./dist/win-unpacked/麦麦.exe" "./scripts/test-native.cjs"'
+        env:
+          ELECTRON_RUN_AS_NODE: '1'
+          MACMIC_PACKAGED_TEST: '1'
       - uses: actions/upload-artifact@v4
         with:
           name: macmic-windows-x64
