@@ -18,7 +18,7 @@ class TrayManager {
   async createTray() {
     try {
       const mac = process.platform === 'darwin';
-      const shortcut = mac ? '⌘⇧Space / 右 ⌘' : 'Ctrl+Shift+Space';
+      const shortcut = mac ? '⌘⇧Space' : 'Ctrl+Shift+Space';
       const icon = nativeImage.createFromPath(path.join(__dirname, '..', '..', 'assets', mac ? 'trayTemplate.png' : 'icon.png')).resize({ width: 20, height: 20 });
       if (mac) icon.setTemplateImage(true);
       this.tray = new Tray(icon);

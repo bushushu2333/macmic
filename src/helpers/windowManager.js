@@ -42,9 +42,10 @@ class WindowManager {
   }
   async createControlPanelWindow() {
     if (this.controlPanelWindow) return this.controlPanelWindow;
-    this.controlPanelWindow = new BrowserWindow({ width: 980, height: 740,
-      minWidth: 800, minHeight: 600, show: false, title: '麦麦',
-      backgroundColor: '#f7f8fa', titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    this.controlPanelWindow = new BrowserWindow({ width: 860, height: 660,
+      minWidth: 760, minHeight: 580, show: false, title: '麦麦',
+      backgroundColor: process.platform === 'darwin' ? '#00000000' : '#f5f5f7',
+      ...(process.platform === 'darwin' ? { vibrancy: 'sidebar', visualEffectState: 'active', trafficLightPosition: { x: 18, y: 18 } } : {}), titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
       autoHideMenuBar: true,
       webPreferences: this.preferences() });
     this.controlPanelWindow.on('close', event => {

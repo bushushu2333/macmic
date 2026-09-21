@@ -1,5 +1,5 @@
 // macmic modifications Copyright 2026 bushushu2333. Derived from yan5xu/ququ; see NOTICE and LICENSE.
-const { app, globalShortcut, BrowserWindow, ipcMain } = require("electron");
+const { app, globalShortcut, BrowserWindow, ipcMain, powerMonitor } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 
@@ -124,6 +124,9 @@ const clipboardManager = new ClipboardManager(logger); // 传递logger实例
 const funasrManager = new FunASRManager(logger); // 传递logger实例
 const trayManager = new TrayManager(logger);
 const hotkeyManager = new HotkeyManager();
+const NativeShortcut = require('./src/helpers/nativeShortcut');
+hotkeyManager.dictationCallback = () => windowManager.mainWindow?.webContents.send('hotkey-triggered');
+const nativeShortcut = new NativeShortcut(() => hotkeyManager.triggerDictation(), logger);
 
 // 初始化数据库
 const dataDirectory = environmentManager.ensureDataDirectory();
@@ -141,6 +144,7 @@ const ipcHandlers = new IPCHandlers({
   funasrManager,
   windowManager,
   hotkeyManager,
+  nativeShortcut,
   logger, // 传递logger实例
 });
 
@@ -201,6 +205,11 @@ async function startApp() {
     logger.error("创建控制面板窗口时出错:", error);
   }
 
+  nativeShortcut.start();
+  powerMonitor.on('suspend', () => nativeShortcut.stop());
+  powerMonitor.on('resume', () => { hotkeyManager.recover(); nativeShortcut.restart(); });
+  powerMonitor.on('unlock-screen', () => { hotkeyManager.registerDictation(); if (!nativeShortcut.isReady()) nativeShortcut.restart(); });
+
   // 设置托盘
   logger.info('设置系统托盘...');
   trayManager.setWindows(
@@ -239,6 +248,7 @@ app.on("activate", () => windowManager.showControlPanel());
 app.on("before-quit", () => { windowManager.quitting = true; });
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
+  nativeShortcut.stop();
   funasrManager.stopServer();
 });
 

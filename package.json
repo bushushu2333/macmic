@@ -1,23 +1,24 @@
 {
   "name": "macmic",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "麦麦 macmic — Beautiful local voice input for macOS and Windows, powered by Qwen3-ASR.",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "dev": "concurrently -k -r \"npm:dev:renderer\" \"npm:dev:main\"",
-    "dev:main": "cross-env NODE_ENV=development electron . --dev",
+    "dev:main": "pnpm run build:native && cross-env NODE_ENV=development electron . --dev",
     "dev:renderer": "cd src && vite",
     "postinstall": "node scripts/install-app-deps.cjs",
     "build:renderer": "cd src && vite build",
     "preview": "cd src && vite preview",
-    "test": "node scripts/test-voice-session.cjs && node scripts/test-vocabulary.cjs && node scripts/test-platform.cjs",
+    "test": "node scripts/test-voice-session.cjs && node scripts/test-vocabulary.cjs && node scripts/test-platform.cjs && node scripts/test-shortcuts.cjs",
     "setup:model": "sh scripts/install-qwen-runtime.sh",
-    "build:mac": "pnpm run build:renderer && node scripts/build-local-mac.cjs",
+    "build:mac": "pnpm run build:native && pnpm run build:renderer && node scripts/build-local-mac.cjs",
     "check:public": "python3 scripts/check-public-source.py",
     "setup:model:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/Setup-Model.ps1",
-    "build:win": "pnpm run build:renderer && electron-builder --win nsis --x64 --publish never"
+    "build:win": "pnpm run build:renderer && electron-builder --win nsis --x64 --publish never",
+    "build:native": "node scripts/build-native-mac.cjs"
   },
   "keywords": [
     "macos",
@@ -135,7 +136,13 @@
       "extendInfo": {
         "NSMicrophoneUsageDescription": "麦麦需要麦克风，将你的语音在本机转换成文字。",
         "NSAppleEventsUsageDescription": "麦麦需要将识别结果输入到当前应用。"
-      }
+      },
+      "extraResources": [
+        {
+          "from": "native/bin/macmic-hotkey",
+          "to": "native/macmic-hotkey"
+        }
+      ]
     },
     "win": {
       "target": [

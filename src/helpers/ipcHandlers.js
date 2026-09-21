@@ -1,5 +1,5 @@
 // macmic modifications Copyright 2026 bushushu2333. Derived from yan5xu/ququ; see NOTICE and LICENSE.
-const { ipcMain, globalShortcut } = require("electron");
+const { ipcMain, globalShortcut, app, systemPreferences, shell } = require("electron");
 
 class IPCHandlers {
   constructor(managers) {
@@ -9,6 +9,7 @@ class IPCHandlers {
     this.funasrManager = managers.funasrManager;
     this.windowManager = managers.windowManager;
     this.hotkeyManager = managers.hotkeyManager;
+    this.nativeShortcut = managers.nativeShortcut;
     this.logger = managers.logger; // 添加logger引用
 
     // 跟踪F2热键注册状态
@@ -18,9 +19,36 @@ class IPCHandlers {
   }
 
   setupHandlers() {
+    ipcMain.handle('get-readiness', () => ({
+      microphone: systemPreferences.getMediaAccessStatus('microphone'),
+      accessibility: process.platform !== 'darwin' || systemPreferences.isTrustedAccessibilityClient(false),
+      nativeShortcut: this.nativeShortcut?.isReady() || false,
+      fallbackShortcut: globalShortcut.isRegistered('CommandOrControl+Shift+Space'),
+      login: app.getLoginItemSettings().openAtLogin,
+    }));
+    ipcMain.handle('set-login-start', (event, enabled) => {
+      app.setLoginItemSettings({ openAtLogin: enabled === true });
+      return app.getLoginItemSettings().openAtLogin;
+    });
+    ipcMain.handle('repair-shortcuts', () => {
+      this.hotkeyManager.recover(); this.nativeShortcut?.restart();
+      return true;
+    });
+    ipcMain.handle('allow-microphone', async () => {
+      if (process.platform === 'darwin') {
+        if (systemPreferences.getMediaAccessStatus('microphone') === 'not-determined') {
+          return systemPreferences.askForMediaAccess('microphone');
+        }
+        await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone');
+      } else await shell.openExternal('ms-settings:privacy-microphone');
+      return false;
+    });
+    ipcMain.handle('open-input-permissions', () => process.platform === 'darwin'
+      ? shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent') : false);
+
     ipcMain.handle('voice-ui-state', (event, state) => {
       if (event.sender !== this.windowManager.mainWindow?.webContents) return false;
-      const active = ['starting', 'recording', 'recognizing', 'polishing'].includes(state);
+      const active = ['starting', 'recording', 'recognizing', 'polishing', 'inserting', 'error'].includes(state);
       this.hotkeyManager.setRecordingState(state === 'recording');
       if (active && !globalShortcut.isRegistered('Escape')) {
         globalShortcut.register('Escape', () => this.windowManager.mainWindow?.webContents.send('cancel-voice'));
@@ -328,50 +356,9 @@ class IPCHandlers {
     // 热键管理 - 添加发送者跟踪机制
     this.hotkeyRegisteredSenders = new Set(); // 跟踪已注册热键的发送者
 
-    ipcMain.handle("register-hotkey", (event, hotkey) => {
-      try {
-        if (this.hotkeyManager) {
-          const senderId = event.sender.id;
-
-          // 检查是否已经为这个发送者注册过热键
-          if (this.hotkeyRegisteredSenders.has(senderId)) {
-            this.logger.info(`发送者 ${senderId} 已注册过热键，跳过重复注册`);
-            return { success: true };
-          }
-
-          const success = this.hotkeyManager.registerHotkey(hotkey, () => {
-            // 只发送热键触发事件到主窗口，避免重复触发
-            this.logger.info(`热键 ${hotkey} 被触发，发送事件到主窗口`);
-            if (this.windowManager && this.windowManager.mainWindow && !this.windowManager.mainWindow.isDestroyed()) {
-              this.windowManager.mainWindow.webContents.send("hotkey-triggered", { hotkey });
-            }
-          });
-
-          if (success) {
-            this.hotkeyManager.registerHotkey('CommandOrControl+Shift+Space', () => {
-              this.windowManager.mainWindow?.webContents.send('hotkey-triggered');
-            });
-            // 添加发送者到跟踪列表
-            this.hotkeyRegisteredSenders.add(senderId);
-
-            // 监听窗口关闭事件，清理注册记录
-            event.sender.on('destroyed', () => {
-              this.hotkeyRegisteredSenders.delete(senderId);
-              this.logger.info(`清理发送者 ${senderId} 的热键注册记录`);
-            });
-
-            this.logger.info(`热键 ${hotkey} 注册成功，发送者: ${senderId}`);
-          } else {
-            this.logger.error(`热键 ${hotkey} 注册失败`);
-          }
-
-          return { success };
-        }
-        return { success: false, error: "热键管理器未初始化" };
-      } catch (error) {
-        this.logger.error("注册热键失败:", error);
-        return { success: false, error: error.message };
-      }
+    ipcMain.handle("register-hotkey", event => {
+      if (event.sender !== this.windowManager.mainWindow?.webContents) return { success: false };
+      return { success: this.hotkeyManager.registerDictation() };
     });
 
     ipcMain.handle("unregister-hotkey", (event, hotkey) => {

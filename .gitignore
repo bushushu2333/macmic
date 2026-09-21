@@ -36,3 +36,5 @@ LOCAL-*.md
 coverage/
 
 node_modules
+
+native/bin/

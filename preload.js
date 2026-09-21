@@ -3,6 +3,11 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld("electronAPI", {
+  getReadiness: () => ipcRenderer.invoke('get-readiness'),
+  setLoginStart: enabled => ipcRenderer.invoke('set-login-start', enabled),
+  repairShortcuts: () => ipcRenderer.invoke('repair-shortcuts'),
+  allowMicrophone: () => ipcRenderer.invoke('allow-microphone'),
+  openInputPermissions: () => ipcRenderer.invoke('open-input-permissions'),
   voiceUIState: (state) => ipcRenderer.invoke('voice-ui-state', state),
   toggleVoice: () => ipcRenderer.invoke('toggle-voice'),
   openSetupGuide: () => ipcRenderer.invoke('open-setup-guide'),
@@ -169,7 +174,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 // 添加一些实用的常量
 contextBridge.exposeInMainWorld("constants", {
   APP_NAME: "麦麦 (macmic)",
-  VERSION: "0.1.0",
+  VERSION: "0.2.0",
   SUPPORTED_AUDIO_FORMATS: ["wav", "mp3", "m4a", "flac"],
   SUPPORTED_EXPORT_FORMATS: ["txt", "docx", "pdf", "json"],
   PLATFORM: process.platform,

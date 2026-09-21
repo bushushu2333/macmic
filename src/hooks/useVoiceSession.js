@@ -62,7 +62,7 @@ export function useVoiceSession() {
   }, [release, transition]);
 
   const start = useCallback(async () => {
-    if (['starting', 'recording', 'recognizing', 'polishing'].includes(phase.current)) return;
+    if (['starting', 'recording', 'recognizing', 'polishing', 'inserting'].includes(phase.current)) return;
     clearTimeout(timer.current);
     const id = ++generation.current;
     const item = { id, chunks: [] };
@@ -118,6 +118,7 @@ export function useVoiceSession() {
           await api.saveTranscription({ text, raw_text: raw, processed_text: text,
             language: result.language, duration: result.duration, file_size: audio.byteLength });
           if (!current()) return;
+          transition('inserting');
           try {
             await api.pasteText(text);
             if (!current()) return;
@@ -147,7 +148,7 @@ export function useVoiceSession() {
 
   const toggle = useCallback(() => {
     if (phase.current === 'recording') finish();
-    else if (!['starting', 'recognizing', 'polishing'].includes(phase.current)) start();
+    else if (!['starting', 'recognizing', 'polishing', 'inserting'].includes(phase.current)) start();
   }, [finish, start]);
   useEffect(() => {
     if (!api) return;

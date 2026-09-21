@@ -9,10 +9,33 @@ class HotkeyManager {
     this.onF2DoubleClick = null;
     this.isRecording = false;
     this.logger = logger;
+    this.lastDictationTrigger = 0;
+    this.dictationCallback = null;
 
     // 简化的热键防抖机制
     this.lastHotkeyTrigger = new Map();
     this.hotkeyDebounceTime = 200; // 200ms防抖时间，防止意外双击
+  }
+
+  // A legacy F19 bridge and the native listener may report the same physical tap.
+  triggerDictation() {
+    const now = Date.now();
+    if (now - this.lastDictationTrigger < 350) return;
+    this.lastDictationTrigger = now;
+    this.dictationCallback?.();
+  }
+  registerDictation() {
+    const fallback = this.registerHotkey('CommandOrControl+Shift+Space', () => this.triggerDictation());
+    const legacy = process.platform === 'darwin' && this.registerHotkey('F19', () => this.triggerDictation());
+    return fallback || legacy;
+  }
+  recover() {
+    // Re-register after wake instead of trusting our in-memory registration map.
+    for (const [key, callback] of this.registeredHotkeys) {
+      globalShortcut.unregister(key);
+      if (!globalShortcut.register(key, callback)) this.registeredHotkeys.delete(key);
+    }
+    this.registerDictation();
   }
 
   /**
@@ -98,13 +121,8 @@ class HotkeyManager {
    * @param {Function} callback - 回调函数
    */
   registerHotkey(hotkey, callback) {
-    // 检查是否已经注册了相同的热键
-    if (this.registeredHotkeys.has(hotkey)) {
-      if (this.logger && this.logger.info) {
-        this.logger.info(`热键 ${hotkey} 已注册，跳过重复注册`);
-      }
-      return true; // 返回成功，因为热键已经注册
-    }
+    if (this.registeredHotkeys.has(hotkey) && globalShortcut.isRegistered(hotkey)) return true;
+    this.registeredHotkeys.delete(hotkey);
 
     // 创建带简单防抖的回调函数
     const debouncedCallback = () => {
@@ -176,7 +194,7 @@ class HotkeyManager {
    * @param {string} hotkey - 热键组合
    */
   isHotkeyRegistered(hotkey) {
-    return this.registeredHotkeys.has(hotkey);
+    return globalShortcut.isRegistered(hotkey);
   }
 
   /**

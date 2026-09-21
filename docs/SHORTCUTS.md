@@ -1,20 +1,26 @@
-# 右 Command 单击
+# 听写快捷键
 
-麦麦本身支持 `⌘⇧Space` 和菜单栏录音，不需要额外软件。
+## macOS
 
-如果你偏好单击右侧 Command，可使用 [Hammerspoon](https://www.hammerspoon.org/) 将这个按键映射为 F19：
+麦麦 0.2.0 内置右 Command 轻按监听，不再需要安装 Hammerspoon。
 
-1. 安装 Hammerspoon，在 macOS 中授予它辅助功能权限。
-2. 把 `examples/macmic-hotkey.lua` 复制到 `~/.hammerspoon/macmic-hotkey.lua`。
-3. 在现有 `~/.hammerspoon/init.lua` 中加入下面一行，保留已有配置：
+1. 在系统设置的“隐私与安全性 → 输入监控”中允许麦麦。
+2. 回到麦麦“设置”，点击“重新连接”。
+3. 首页显示“右 Command 已连接”后，轻按右 Command 开始，再按一次完成。
 
-```lua
-require('macmic-hotkey')
-```
+只有单独按下并在 0.8 秒内松开才触发；组合键、鼠标组合操作和长按不会触发。监听器不记录按键内容，也不发送键盘事件到网络。睡眠恢复后会重新连接；系统启用 Secure Input 时全局监听可能暂时不可用。
 
-4. 在 Hammerspoon 菜单里选择 **Reload Config**。
-5. 若 macOS 询问是否允许 Hammerspoon 控制 System Events，允许该操作以发送 F19。
+备用快捷键是 `⌘⇧Space`。首页根据连接状态显示当前可用方式，菜单栏也有“开始 / 结束录音”。麦克风用于采集语音，辅助功能用于将文字输入当前应用；应用更新签名后，macOS 可能要求重新授权。
 
-不要同时启用多份映射相同按键的配置。已经有右 Command → F19 的映射时无需再添加。示例只处理单独的右 Command，组合快捷键不触发；系统启用 Secure Input 时，全局按键监听可能不可用。
+旧版 `examples/macmic-hotkey.lua` 映射为 F19 的方式仍兼容。内置监听器就绪后，可移除原来配置中的 `require('macmic-hotkey')` 并重新加载 Hammerspoon；请保留自己的其他配置。内置监听与旧映射同时报告一次轻按时，麦麦会合并触发，避免立即开始又停止。
 
-卸载映射时移除 `require('macmic-hotkey')`，再重新加载 Hammerspoon 配置。
+## Windows
+
+使用 `Ctrl+Shift+Space` 开始 / 完成听写，也可右键系统托盘中的麦麦图标。当前 Windows 版本不提供右 Command 或单个修饰键映射。
+
+## 取消与后台运行
+
+- 按 `Esc` 或浮条叉号取消录音、识别或文字整理。
+- 关闭主窗口会隐藏面板，快捷键仍然可用。
+- 在设置中启用“登录时启动”，可让麦麦随登录在后台启动。
+- 从菜单栏或系统托盘选择“退出麦麦”才会完全退出。
