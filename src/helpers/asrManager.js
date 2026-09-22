@@ -1,5 +1,4 @@
 // macmic modifications Copyright 2026 bushushu2333. See NOTICE and LICENSE.
-const LocalAsrManager = require('./localAsrManager');
 const DoubaoAsr = require('./doubaoAsr');
 const { normalizeVocabulary } = require('./vocabulary');
 const ASR_KEYS = new Set(['asr_provider', 'doubao_app_key', 'doubao_api_key', 'doubao_resource_id']);
@@ -9,7 +8,7 @@ class AsrManager {
   constructor(logger, database, { local, cloud } = {}) {
     this.logger = logger;
     this.database = database;
-    this.local = local || new LocalAsrManager(logger);
+    this.local = local || new (require('./localAsrManager'))(logger);
     this.cloud = cloud || new DoubaoAsr({ getConfig: () => this.cloudConfig(), logger });
     this.activeSession = null;
     this.streamError = null;
