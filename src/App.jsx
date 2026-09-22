@@ -5,7 +5,8 @@ import { useVoiceSession } from './hooks/useVoiceSession';
 import './voice.css';
 
 const isWindows = window.constants?.PLATFORM === 'win32';
-const shortcut = isWindows ? 'Ctrl ⇧ Space' : '右 ⌘';
+const shortcut = isWindows ? 'Alt' : '右 ⌘';
+const fallbackShortcut = isWindows ? 'Ctrl ⇧ Space' : '⌘ ⇧ Space';
 const trayName = isWindows ? '系统托盘' : '菜单栏';
 
 function LiveWave({ analyser }) {
@@ -35,9 +36,9 @@ function LiveWave({ analyser }) {
 function VoiceOverlay() {
   const voice = useVoiceSession();
   const [seconds, setSeconds] = useState(0);
-  const [hint, setHint] = useState(isWindows ? shortcut : '⌘ ⇧ Space');
+  const [hint, setHint] = useState(fallbackShortcut);
   useEffect(() => {
-    window.electronAPI?.getReadiness().then(value => setHint(isWindows ? shortcut : value.nativeShortcut ? '右 ⌘' : '⌘ ⇧ Space')).catch(() => {});
+    window.electronAPI?.getReadiness().then(value => setHint(value.nativeShortcut ? shortcut : fallbackShortcut)).catch(() => {});
   }, [voice.state]);
   useEffect(() => {
     if (voice.state !== 'recording') return;
@@ -150,7 +151,7 @@ function Dashboard() {
   const ready = status.server_ready === true;
   const recognitionStatus = cloud ? ready ? '豆包语音已配置' : '豆包语音待配置' : ready ? '本地模型已就绪' : status.error ? '模型需要检查' : '正在准备模型';
   const nativeReady = readiness.nativeShortcut === true;
-  const activeShortcut = isWindows ? 'Ctrl ⇧ Space' : nativeReady ? '右 ⌘' : '⌘ ⇧ Space';
+  const activeShortcut = nativeReady ? shortcut : fallbackShortcut;
   const shortcutReady = nativeReady || readiness.fallbackShortcut;
   const micReady = readiness.microphone === 'granted';
   const microphoneLabel = micReady ? '已允许' : readiness.microphone === 'denied' || readiness.microphone === 'restricted' ? '需要开启权限' : '首次使用时授权';
@@ -214,7 +215,7 @@ function Dashboard() {
         <div className="section-heading"><h2>准备就绪</h2><span>随时可以检查</span></div>
         <section className="group readiness-group" aria-label="听写准备状态">
           <SettingRow icon={Mic} title="麦克风" color="orange"><span className={micReady ? 'value good' : 'value'}>{microphoneLabel}</span>{!micReady && <button className="text-button" onClick={() => action(() => api.allowMicrophone())}>设置<ChevronRight size={13} /></button>}</SettingRow>
-          <SettingRow icon={Command} title="快捷键" color="purple"><span className={shortcutReady ? 'value good' : 'value'}>{nativeReady ? '右 Command 已连接' : readiness.fallbackShortcut ? `${activeShortcut} 可用` : '等待连接'}</span><button className="icon-button" aria-label="检查快捷键设置" onClick={() => setTab('settings')}><ChevronRight size={15} /></button></SettingRow>
+          <SettingRow icon={Command} title="快捷键" color="purple"><span className={shortcutReady ? 'value good' : 'value'}>{nativeReady ? isWindows ? '左右 Alt 已连接' : '右 Command 已连接' : readiness.fallbackShortcut ? `${activeShortcut} 可用` : '等待连接'}</span><button className="icon-button" aria-label="检查快捷键设置" onClick={() => setTab('settings')}><ChevronRight size={15} /></button></SettingRow>
           <SettingRow icon={cloud ? Cloud : Cpu} title={cloud ? "豆包语音" : "本地识别"} color="green"><span className={ready ? 'value good' : 'value'}>{cloud ? ready ? '已配置' : '待配置' : ready ? '已就绪' : status.error ? '需要检查' : '正在加载'}</span>{!ready && <button className="text-button" onClick={() => setTab('settings')}>查看<ChevronRight size={13} /></button>}</SettingRow>
         </section>
         <p className="quiet-note"><ShieldCheck size={14} /><span>{cloud ? '语音与词库发送至豆包识别' : '语音在本机识别 · 不上传录音'}{polish ? ' · 文字整理已开启' : ''}</span></p>
@@ -235,7 +236,7 @@ function Dashboard() {
       {tab === 'settings' && <div className="settings-stack">
         <section><div className="section-heading"><h2>日常使用</h2></div><div className="group">
           <SettingRow icon={Power} title="登录时启动" detail={`启动后安静地留在${trayName}`}><Toggle checked={!!readiness.login} onChange={toggleLogin} label="登录时启动" disabled={switchSaving} /></SettingRow>
-          <SettingRow icon={Command} color="purple" title={isWindows ? '听写快捷键' : '右 Command 轻按'} detail={isWindows ? 'Ctrl + Shift + Space' : nativeReady ? '已内置监听，无需其他辅助应用' : '尚未连接，可使用 ⌘ ⇧ Space'}><button className="secondary" onClick={repair}>重新连接</button></SettingRow>
+          <SettingRow icon={Command} color="purple" title={isWindows ? 'Alt 轻按' : '右 Command 轻按'} detail={nativeReady ? isWindows ? '左 Alt 或右 Alt，轻按开始，再按完成' : '已内置监听，无需其他辅助应用' : `尚未连接，可使用 ${fallbackShortcut}`}><button className="secondary" onClick={repair}>重新连接</button></SettingRow>
           {!isWindows && !nativeReady && <div className="inline-help"><p>若重新连接后仍不可用，请在系统“输入监控”中允许麦麦，再重新连接。</p><button className="text-button" onClick={() => action(() => api.openInputPermissions())}>打开输入监控<ArrowUpRight size={13} /></button></div>}
           <SettingRow icon={ShieldCheck} color="green" title={isWindows ? '输入方式' : '自动输入权限'} detail={isWindows ? '识别完成后粘贴到当前光标处' : readiness.accessibility ? '辅助功能已允许' : '允许辅助功能，才能直接输入当前应用'}>{!isWindows && !readiness.accessibility ? <button className="secondary" onClick={() => action(() => api.openSystemPermissions())}>允许权限</button> : <Check size={17} className="good" />}</SettingRow>
         </div><p className="footnote">关闭窗口后，麦麦仍在{trayName}运行。Esc 可取消听写。</p></section>
@@ -257,7 +258,7 @@ function Dashboard() {
           {!cloud && <div className="model-actions"><span>{status.error ? '模型需要检查，请查看安装说明' : ready ? '本地模型已就绪' : '首次加载需要一点时间'}</span><button className="text-button" onClick={() => action(() => api.openSetupGuide())}>安装说明</button><button className="secondary" disabled={restarting} onClick={restart}>{restarting ? '启动中…' : '重启模型'}</button></div>}
         </div></section>
         <section><div className="section-heading"><h2>文字整理</h2><span>可选</span></div><div className="group"><SettingRow icon={Sparkles} color="purple" title="智能整理" detail="整理标点与口头重复，保留原意"><Toggle checked={polish} onChange={togglePolish} label="智能文字整理" disabled={switchSaving} /></SettingRow><div className="inline-help"><p>开启后，识别文字和词库会发送给你配置的 AI 服务。文字整理不发送录音；整理失败时使用原文。</p></div><details className="service-details"><summary>文字整理服务<span>{hasKey ? '已配置' : '待配置'}<ChevronRight size={14} /></span></summary><form className="service-form" onSubmit={saveConfig}><label>服务地址<input type="url" required placeholder="https://api.example.com/v1" value={config.ai_base_url} onChange={event => setConfig({ ...config, ai_base_url: event.target.value })} /></label><label>模型名称<input required value={config.ai_model} onChange={event => setConfig({ ...config, ai_model: event.target.value })} /></label><label>API 密钥<input type="password" autoComplete="off" placeholder={hasKey ? '已配置，留空保持不变' : '请输入 API 密钥'} value={config.ai_api_key} onChange={event => setConfig({ ...config, ai_api_key: event.target.value })} /></label><div className="dialog-actions"><button className="primary" disabled={saving}>{saving ? '保存中…' : '保存设置'}</button></div></form></details></div></section>
-        <div className="about"><img src="./macmic.svg" width="28" height="28" alt="" /><span>麦麦 macmic<span>让表达，自然发生 · {window.constants?.VERSION || '0.3.0'}</span></span></div>
+        <div className="about"><img src="./macmic.svg" width="28" height="28" alt="" /><span>麦麦 macmic<span>让表达，自然发生 · {window.constants?.VERSION || '0.3.1'}</span></span></div>
       </div>}
       </div>
     </main>{notice && <div className="notice" role="status">{notice}</div>}

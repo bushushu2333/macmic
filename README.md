@@ -79,7 +79,7 @@ ditto 'dist-local/mac-arm64/麦麦.app' '/Applications/麦麦.app'
 | 操作 | 方式 |
 | --- | --- |
 | Mac 开始 / 结束录音 | `⌘⇧Space`，或菜单栏的“开始 / 结束录音” |
-| Windows 开始 / 结束录音 | `Ctrl+Shift+Space`，或右键系统托盘图标 |
+| Windows 开始 / 结束录音 | 轻按左 / 右 `Alt`，备用 `Ctrl+Shift+Space`，或右键系统托盘图标 |
 | 单击右侧 Command | 内置支持，允许输入监控后使用，见 [快捷键说明](docs/SHORTCUTS.md) |
 | 取消当前录音 / 识别 / 整理 | `Esc` 或浮条上的叉号 |
 | 打开面板 | 菜单栏波形图标 → 打开麦麦 |

@@ -16,12 +16,14 @@ class NativeShortcut {
   }
   isReady() { return this.ready && Date.now() - this.lastStatus < 15000; }
   start() {
-    if (process.platform !== 'darwin' || this.child) return;
+    if (!['darwin', 'win32'].includes(process.platform) || this.child) return;
     this.stopped = false;
     clearTimeout(this.timer);
-    const executable = app.isPackaged ? path.join(process.resourcesPath, 'native', 'macmic-hotkey')
-      : path.join(__dirname, '..', '..', 'native', 'bin', 'macmic-hotkey');
-    const child = spawn(executable, [], { stdio: ['ignore', 'pipe', 'ignore'] });
+    const filename = process.platform === 'win32' ? 'macmic-hotkey.exe' : 'macmic-hotkey';
+    const executable = app.isPackaged ? path.join(process.resourcesPath, 'native', filename)
+      : path.join(__dirname, '..', '..', 'native', 'bin', filename);
+    const args = process.platform === 'win32' ? ['--parent-pid', String(process.pid)] : [];
+    const child = spawn(executable, args, { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
     this.child = child;
     this.lastStatus = Date.now();
     this.watchdog = setInterval(() => {

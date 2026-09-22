@@ -56,6 +56,8 @@ jobs:
         env:
           ELECTRON_RUN_AS_NODE: '1'
           MACMIC_PACKAGED_TEST: '1'
+      - name: Check packaged Alt listener
+        run: '& "./dist/win-unpacked/resources/native/macmic-hotkey.exe" --self-test'
       - uses: actions/upload-artifact@v4
         with:
           name: macmic-windows-x64

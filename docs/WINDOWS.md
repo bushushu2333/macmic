@@ -17,13 +17,13 @@ Windows 版共用 Mac 版的页面、真实声音波形和录音流程，使用 
 
 1. 安装并打开麦麦，在“设置 → 语音识别”选择豆包。
 2. 填写自己的 App ID、Access Key 和 Resource ID，保存设置。默认资源 ID 为 `volc.seedasr.sauc.duration`。
-3. 允许 Windows 设置中的麦克风及“让桌面应用访问麦克风”，在输入框按 `Ctrl+Shift+Space` 开始听写。
+3. 允许 Windows 设置中的麦克风及“让桌面应用访问麦克风”，在输入框轻按左 `Alt` 或右 `Alt` 开始听写。
 
 此模式会把录音和专有词库发送到火山引擎，可能产生账户调用费用。无需安装本地模型，启动时也不会加载它。配置状态不代表网络或额度已通过检查；连接失败会在录音浮条中显示。
 
 ### 使用本地模型
 
-1. 从 [Releases](https://github.com/bushushu2333/macmic/releases) 下载 `macmic-0.3.0-windows-x64-setup.exe` 并安装。安装包未使用商业代码签名证书，Windows 可能提示未知发布者；只使用本仓库发布的文件并核对 SHA-256。
+1. 从 [Releases](https://github.com/bushushu2333/macmic/releases) 下载 `macmic-0.3.1-windows-x64-setup.exe` 并安装。安装包未使用商业代码签名证书，Windows 可能提示未知发布者；只使用本仓库发布的文件并核对 SHA-256。
 2. 同页下载 `macmic-windows-model-setup.zip`，解压到一个文件夹。
 3. 在 PowerShell 安装 uv，然后**新开一个 PowerShell 窗口**，让 PATH 生效：
 
@@ -46,7 +46,7 @@ Python、模型与数据保存在 `%APPDATA%\macmic\`。更换安装路径不会
 
 | 操作 | 方式 |
 | --- | --- |
-| 开始 / 结束 | `Ctrl + Shift + Space`，或右键托盘图标 |
+| 开始 / 结束 | 轻按左 / 右 `Alt`，备用 `Ctrl + Shift + Space`，或右键托盘图标 |
 | 取消录音 / 识别 / 整理 | `Esc` 或浮条叉号 |
 | 打开面板 | 双击托盘图标 |
 | 退出程序 | 右键托盘 → 退出麦麦 |

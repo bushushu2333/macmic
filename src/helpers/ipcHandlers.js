@@ -409,7 +409,8 @@ class IPCHandlers {
 
     ipcMain.handle("register-hotkey", event => {
       if (event.sender !== this.windowManager.mainWindow?.webContents) return { success: false };
-      return { success: this.hotkeyManager.registerDictation() };
+      const registered = this.hotkeyManager.registerDictation();
+      return { success: registered || this.nativeShortcut?.isReady() || false };
     });
 
     ipcMain.handle("unregister-hotkey", (event, hotkey) => {
@@ -427,6 +428,7 @@ class IPCHandlers {
 
     ipcMain.handle("get-current-hotkey", () => {
       try {
+        if (process.platform === 'win32' && this.nativeShortcut?.isReady()) return 'Alt';
         if (this.hotkeyManager) {
           const hotkeys = this.hotkeyManager.getRegisteredHotkeys();
           // 返回第一个非F2的热键，或默认热键
