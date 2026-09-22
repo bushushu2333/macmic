@@ -45,14 +45,25 @@ class WindowManager {
     this.controlPanelWindow = new BrowserWindow({ width: 860, height: 660,
       minWidth: 760, minHeight: 580, show: false, title: '麦麦',
       backgroundColor: process.platform === 'darwin' ? '#00000000' : '#f5f5f7',
-      ...(process.platform === 'darwin' ? { vibrancy: 'sidebar', visualEffectState: 'active', trafficLightPosition: { x: 18, y: 18 } } : {}), titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+      ...(process.platform === 'darwin' ? { vibrancy: 'sidebar', visualEffectState: 'active', trafficLightPosition: { x: 22, y: 22 } } : {}), titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
       autoHideMenuBar: true,
       webPreferences: this.preferences() });
+    const panel = this.controlPanelWindow;
+    const positionWindowControls = () => {
+      if (process.platform === 'darwin') panel.setWindowButtonPosition({ x: 22, y: 22 });
+    };
+    // AppKit can reset custom titlebar margins when showing standard buttons.
+    panel.on('show', positionWindowControls);
+    panel.on('restore', positionWindowControls);
+    panel.on('leave-full-screen', positionWindowControls);
     this.controlPanelWindow.on('close', event => {
       if (!this.quitting) { event.preventDefault(); this.controlPanelWindow.hide(); }
     });
     this.controlPanelWindow.on('closed', () => { this.controlPanelWindow = null; });
     await this.load(this.controlPanelWindow, { panel: 'control' });
+    // Apply after the native titlebar is laid out, before the first show. This
+    // keeps the controls inside the inset glass rather than on its corner rim.
+    positionWindowControls();
     return this.controlPanelWindow;
   }
   async showControlPanel() {

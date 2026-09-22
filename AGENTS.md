@@ -8,4 +8,4 @@ macmic (麦麦) is a local dictation application for Apple Silicon and Windows x
 - Settings and user vocabulary live outside the repository. Do not commit databases, local configuration, audio, model weights, runtime environments or credentials.
 - Keep the upstream LICENSE verbatim and preserve NOTICE attribution.
 - Changes to data directories require an explicit migration plan; do not silently reset settings or re-download a multi-GB model.
-- No telemetry, network ASR, or automatic transmission of clipboard/application context.
+- No telemetry or automatic transmission of clipboard/application context. Local ASR remains the default. Network ASR is allowed only when the user explicitly selects and configures Doubao; disclose that audio and vocabulary are sent to that service. Never silently switch between local and cloud providers.

@@ -1,7 +1,7 @@
 {
   "name": "macmic",
-  "version": "0.2.0",
-  "description": "麦麦 macmic — Beautiful local voice input for macOS and Windows, powered by Qwen3-ASR.",
+  "version": "0.3.0",
+  "description": "麦麦 macmic — Voice input for macOS and Windows, with local Qwen3-ASR and optional Doubao streaming.",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -12,7 +12,7 @@
     "postinstall": "node scripts/install-app-deps.cjs",
     "build:renderer": "cd src && vite build",
     "preview": "cd src && vite preview",
-    "test": "node scripts/test-voice-session.cjs && node scripts/test-vocabulary.cjs && node scripts/test-platform.cjs && node scripts/test-shortcuts.cjs",
+    "test": "node scripts/test-voice-session.cjs && node scripts/test-vocabulary.cjs && node scripts/test-platform.cjs && node scripts/test-shortcuts.cjs && node scripts/test-asr-manager.cjs && node scripts/test-doubao-asr.cjs && node scripts/test-cloud-voice-session.cjs && node scripts/test-pcm-capture.cjs && node scripts/test-asr-ipc.cjs",
     "setup:model": "sh scripts/install-qwen-runtime.sh",
     "build:mac": "pnpm run build:native && pnpm run build:renderer && node scripts/build-local-mac.cjs",
     "check:public": "python3 scripts/check-public-source.py",
@@ -95,7 +95,8 @@
     "tailwindcss-animate": "^1.0.7",
     "tar": "^7.4.3",
     "tw-animate-css": "^1.3.4",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.3",
+    "ws": "^8.21.3"
   },
   "build": {
     "appId": "io.github.bushushu2333.macmic",

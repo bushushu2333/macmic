@@ -30,7 +30,7 @@ const EnvironmentManager = require("./src/helpers/environment");
 const WindowManager = require("./src/helpers/windowManager");
 const DatabaseManager = require("./src/helpers/database");
 const ClipboardManager = require("./src/helpers/clipboard");
-const FunASRManager = require("./src/helpers/localAsrManager");
+const FunASRManager = require("./src/helpers/asrManager");
 const TrayManager = require("./src/helpers/tray");
 const HotkeyManager = require("./src/helpers/hotkeyManager");
 const IPCHandlers = require("./src/helpers/ipcHandlers");
@@ -121,7 +121,7 @@ const environmentManager = new EnvironmentManager();
 const windowManager = new WindowManager();
 const databaseManager = new DatabaseManager();
 const clipboardManager = new ClipboardManager(logger); // 传递logger实例
-const funasrManager = new FunASRManager(logger); // 传递logger实例
+const funasrManager = new FunASRManager(logger, databaseManager); // 传递logger实例
 const trayManager = new TrayManager(logger);
 const hotkeyManager = new HotkeyManager();
 const NativeShortcut = require('./src/helpers/nativeShortcut');
@@ -182,9 +182,9 @@ async function startApp() {
   }
 
   // 在启动时初始化本地识别模型（不等待以避免阻塞）
-  logger.info('开始初始化本地识别模型...');
+  logger.info('开始初始化语音识别服务...');
   funasrManager.initializeAtStartup().catch((err) => {
-    logger.warn("本地识别模型在启动时不可用，这不是关键问题", err);
+    logger.warn("语音识别服务尚未就绪，请检查所选服务配置", err);
   });
 
   // 创建主窗口

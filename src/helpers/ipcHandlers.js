@@ -19,6 +19,53 @@ class IPCHandlers {
   }
 
   setupHandlers() {
+    const { ASR_KEYS } = require('./asrManager');
+    const safeSettings = () => {
+      const values = this.databaseManager.getAllSettings();
+      delete values.doubao_api_key;
+      return values;
+    };
+    const requireVoiceWindow = event => {
+      if (event.sender !== this.windowManager.mainWindow?.webContents) throw new Error('无效的录音窗口');
+    };
+    ipcMain.handle('get-asr-settings', () => this.funasrManager.getSettings());
+    ipcMain.handle('save-asr-settings', (event, settings) => {
+      if (event.sender !== this.windowManager.controlPanelWindow?.webContents) throw new Error('无效的设置窗口');
+      if (['starting', 'recording', 'recognizing', 'polishing', 'inserting'].includes(this.voiceState)) throw new Error('请先结束当前听写，再修改识别服务');
+      return this.funasrManager.saveSettings(settings);
+    });
+    ipcMain.handle('start-asr-stream', async (event, id) => {
+      requireVoiceWindow(event);
+      if (this.streamSender !== event.sender) {
+        this.streamSender = event.sender;
+        const cancel = () => {
+          if (this.funasrManager.activeSession) this.funasrManager.cancelStream(this.funasrManager.activeSession);
+          this.voiceState = 'idle';
+          this.hotkeyManager.setRecordingState(false);
+          globalShortcut.unregister('Escape');
+          this.windowManager.mainWindow?.hide();
+        };
+        event.sender.once('destroyed', cancel);
+        event.sender.on('render-process-gone', cancel);
+      }
+      try { return await this.funasrManager.startStream(id); }
+      catch (error) { return { success: false, error: error.message }; }
+    });
+    ipcMain.on('asr-stream-audio', (event, id, pcm) => {
+      if (event.sender !== this.windowManager.mainWindow?.webContents) return;
+      const previous = this.funasrManager.streamError;
+      this.funasrManager.sendAudio(id, pcm);
+      if (!previous && this.funasrManager.streamError) event.sender.send('asr-stream-error', { id, error: this.funasrManager.streamError.message });
+    });
+    ipcMain.handle('finish-asr-stream', async (event, id) => {
+      requireVoiceWindow(event);
+      try { return await this.funasrManager.finishStream(id); }
+      catch (error) { return { success: false, error: error.message }; }
+    });
+    ipcMain.handle('cancel-asr-stream', (event, id) => {
+      requireVoiceWindow(event);
+      return this.funasrManager.cancelStream(id);
+    });
     ipcMain.handle('get-readiness', () => ({
       microphone: systemPreferences.getMediaAccessStatus('microphone'),
       accessibility: process.platform !== 'darwin' || systemPreferences.isTrustedAccessibilityClient(false),
@@ -48,6 +95,7 @@ class IPCHandlers {
 
     ipcMain.handle('voice-ui-state', (event, state) => {
       if (event.sender !== this.windowManager.mainWindow?.webContents) return false;
+      this.voiceState = state;
       const active = ['starting', 'recording', 'recognizing', 'polishing', 'inserting', 'error'].includes(state);
       this.hotkeyManager.setRecordingState(state === 'recording');
       if (active && !globalShortcut.isRegistered('Escape')) {
@@ -181,22 +229,25 @@ class IPCHandlers {
 
     // 设置相关
     ipcMain.handle("get-setting", (event, key, defaultValue) => {
+      if (key === 'doubao_api_key') return '';
       return this.databaseManager.getSetting(key, defaultValue);
     });
 
     ipcMain.handle("set-setting", (event, key, value) => {
+      if (ASR_KEYS.has(key)) throw new Error('请通过语音识别设置保存配置');
       return this.databaseManager.setSetting(key, value);
     });
 
     ipcMain.handle("get-all-settings", () => {
-      return this.databaseManager.getAllSettings();
+      return safeSettings();
     });
 
     ipcMain.handle("get-settings", () => {
-      return this.databaseManager.getAllSettings();
+      return safeSettings();
     });
 
     ipcMain.handle("save-setting", (event, key, value) => {
+      if (ASR_KEYS.has(key)) throw new Error('请通过语音识别设置保存配置');
       return this.databaseManager.setSetting(key, value);
     });
 

@@ -1,6 +1,6 @@
 // macmic modifications Copyright 2026 bushushu2333. Derived from yan5xu/ququ; see NOTICE and LICENSE.
 import { useEffect, useRef, useState } from 'react';
-import { AudioLines, ArrowUpRight, Check, ChevronRight, Copy, History, Mic, Settings2, Sparkles, X, BookOpen, Plus, LoaderCircle, Cpu, CheckCheck, Command, Search, ShieldCheck, Power } from 'lucide-react';
+import { AudioLines, ArrowUpRight, Check, ChevronRight, Copy, History, Mic, Settings2, Sparkles, X, BookOpen, Plus, LoaderCircle, Cpu, CheckCheck, Command, Search, ShieldCheck, Power, Cloud } from 'lucide-react';
 import { useVoiceSession } from './hooks/useVoiceSession';
 import './voice.css';
 
@@ -46,7 +46,7 @@ function VoiceOverlay() {
     return () => clearInterval(timer);
   }, [voice.state, voice.started]);
   const busy = ['starting', 'recognizing', 'polishing', 'inserting'].includes(voice.state);
-  const labels = { starting: '正在打开麦克风', recognizing: '正在识别', polishing: '正在整理', inserting: '正在输入' };
+  const labels = { starting: voice.message || '正在打开麦克风', recognizing: '正在识别', polishing: '正在整理', inserting: '正在输入' };
   if (voice.state === 'idle') return null;
   return <div className="voice-overlay">
     <div className={`voice-pill ${voice.state}`} role="status" aria-live="polite">
@@ -77,6 +77,8 @@ function Dashboard() {
   const [notice, setNotice] = useState('');
   const [config, setConfig] = useState({ ai_base_url: '', ai_model: '', ai_api_key: '' });
   const [hasKey, setHasKey] = useState(false);
+  const [asr, setAsr] = useState({ provider: 'local', appKey: '', resourceId: 'volc.seedasr.sauc.duration', apiKey: '', hasApiKey: false, configured: false });
+  const [asrSaving, setAsrSaving] = useState(false);
   const [filter, setFilter] = useState('');
   const [wordFilter, setWordFilter] = useState('');
   const [saving, setSaving] = useState(false);
@@ -107,6 +109,8 @@ function Dashboard() {
         setWords(terms); setPolish(enabled); setHasKey(!!key);
         setConfig({ ai_base_url: base, ai_model: model, ai_api_key: '' });
       }).catch(() => flash('无法读取设置，请重新打开麦麦'));
+    api.getAsrSettings().then(value => { if (active) setAsr({ ...value, apiKey: '' }); })
+      .catch(() => flash('无法读取语音服务设置'));
     refresh();
     const timer = setInterval(refresh, 3000);
     window.addEventListener('focus', refresh);
@@ -142,7 +146,9 @@ function Dashboard() {
     if (await saveWords(next)) { setWord(''); dialog.current.close(); }
   };
   const copy = text => action(async () => { await api.copyText(text); flash('已复制到剪贴板'); });
+  const cloud = status.provider === 'doubao';
   const ready = status.server_ready === true;
+  const recognitionStatus = cloud ? ready ? '豆包语音已配置' : '豆包语音待配置' : ready ? '本地模型已就绪' : status.error ? '模型需要检查' : '正在准备模型';
   const nativeReady = readiness.nativeShortcut === true;
   const activeShortcut = isWindows ? 'Ctrl ⇧ Space' : nativeReady ? '右 ⌘' : '⌘ ⇧ Space';
   const shortcutReady = nativeReady || readiness.fallbackShortcut;
@@ -173,6 +179,16 @@ function Dashboard() {
     } catch (error) { flash(error.message === 'config' || error instanceof TypeError ? '请填写有效的服务地址和模型名称' : '保存失败，请重试'); }
     finally { setSaving(false); }
   };
+  const saveAsr = async event => {
+    event.preventDefault(); setAsrSaving(true);
+    try {
+      const next = await api.saveAsrSettings({ provider: asr.provider, appKey: asr.appKey.trim(), resourceId: asr.resourceId.trim(), ...(asr.apiKey.trim() ? { apiKey: asr.apiKey.trim() } : {}) });
+      setAsr({ ...next, apiKey: '' });
+      setStatus(await api.checkFunASRStatus());
+      flash(next.provider === 'doubao' ? '豆包语音设置已保存，下次听写生效' : '已切换为本地识别');
+    } catch { flash('保存失败，请检查语音服务配置，或等听写结束后再试'); }
+    finally { setAsrSaving(false); }
+  };
   const togglePolish = async () => {
     setSwitchSaving(true);
     await action(async () => { await api.setSetting('enable_ai_optimization', !polish); setPolish(!polish); });
@@ -188,27 +204,27 @@ function Dashboard() {
       <div className="sidebar-titlebar" />
       <div className="brand"><img src="./macmic.svg" width="40" height="40" alt="" /><div><strong>麦麦</strong><span>macmic</span></div></div>
       <nav aria-label="主导航">{nav.map(({ key, label, icon: Icon }) => <button key={key} onClick={() => setTab(key)} aria-current={tab === key ? 'page' : undefined} className={tab === key ? 'selected' : ''}><Icon size={18} strokeWidth={1.8} />{label}{key === 'words' && <small>{words.length}</small>}</button>)}</nav>
-      <div className="sidebar-bottom"><div><span className={`status-dot ${ready ? 'ready' : 'pending'}`} /><strong>{ready ? '本地模型已就绪' : status.error ? '模型需要检查' : '正在准备模型'}</strong></div><span>声音在本机，表达更自在。</span></div>
+      <div className="sidebar-bottom"><div><span className={`status-dot ${ready ? 'ready' : 'pending'}`} /><strong>{recognitionStatus}</strong></div><span>{cloud ? '豆包云端识别 · 需要网络' : '声音在本机，表达更自在。'}</span></div>
     </aside>
     <main className="workspace-main">
       <header className="toolbar"><h1>{nav.find(item => item.key === tab).label}</h1><span className="toolbar-caption">{tab === 'home' ? '你的声音，即刻成文' : tab === 'words' ? `${words.length} 个专有词` : tab === 'history' ? '保存在这台设备上' : '按你的习惯'}</span></header>
       <div className={`page-content ${tab}`}>
       {tab === 'home' && <>
-        <section className="dictation-hero"><div className="mic-orb"><AudioLines size={38} strokeWidth={1.65} /></div><h2>想到，就说出来。</h2><p>在任意输入框，按一下开始，再按一下完成。</p><button className="shortcut-key" disabled={!ready} onClick={() => action(() => api.toggleVoice())} aria-label="开始听写"><span>{activeShortcut}</span><Mic size={17} /></button><div className="shortcut-caption">{ready ? '按快捷键，或点击上方按钮开始' : '本地模型准备好后，即可开始听写'}</div></section>
+        <section className="dictation-hero"><div className="mic-orb"><AudioLines size={38} strokeWidth={1.65} /></div><h2>想到，就说出来。</h2><p>在任意输入框，按一下开始，再按一下完成。</p><button className="shortcut-key" disabled={!ready} onClick={() => action(() => api.toggleVoice())} aria-label="开始听写"><span>{activeShortcut}</span><Mic size={17} /></button><div className="shortcut-caption">{ready ? '按快捷键，或点击上方按钮开始' : cloud ? '请先在设置中配置豆包语音' : '本地模型准备好后，即可开始听写'}</div></section>
         <div className="section-heading"><h2>准备就绪</h2><span>随时可以检查</span></div>
         <section className="group readiness-group" aria-label="听写准备状态">
           <SettingRow icon={Mic} title="麦克风" color="orange"><span className={micReady ? 'value good' : 'value'}>{microphoneLabel}</span>{!micReady && <button className="text-button" onClick={() => action(() => api.allowMicrophone())}>设置<ChevronRight size={13} /></button>}</SettingRow>
           <SettingRow icon={Command} title="快捷键" color="purple"><span className={shortcutReady ? 'value good' : 'value'}>{nativeReady ? '右 Command 已连接' : readiness.fallbackShortcut ? `${activeShortcut} 可用` : '等待连接'}</span><button className="icon-button" aria-label="检查快捷键设置" onClick={() => setTab('settings')}><ChevronRight size={15} /></button></SettingRow>
-          <SettingRow icon={Cpu} title="本地识别" color="green"><span className={ready ? 'value good' : 'value'}>{ready ? '已就绪' : status.error ? '需要检查' : '正在加载'}</span>{!ready && <button className="text-button" onClick={() => setTab('settings')}>查看<ChevronRight size={13} /></button>}</SettingRow>
+          <SettingRow icon={cloud ? Cloud : Cpu} title={cloud ? "豆包语音" : "本地识别"} color="green"><span className={ready ? 'value good' : 'value'}>{cloud ? ready ? '已配置' : '待配置' : ready ? '已就绪' : status.error ? '需要检查' : '正在加载'}</span>{!ready && <button className="text-button" onClick={() => setTab('settings')}>查看<ChevronRight size={13} /></button>}</SettingRow>
         </section>
-        <p className="quiet-note"><ShieldCheck size={14} />语音在本机识别{polish ? ' · 文字整理已开启' : ' · 不上传录音'}</p>
+        <p className="quiet-note"><ShieldCheck size={14} /><span>{cloud ? '语音与词库发送至豆包识别' : '语音在本机识别 · 不上传录音'}{polish ? ' · 文字整理已开启' : ''}</span></p>
       </>}
       {tab === 'words' && <>
         <div className="page-intro"><h2>更懂你的用词。</h2><p>添加常用的人名、品牌和术语，让识别更准确。</p></div>
         <div className="list-toolbar"><label className="search-field"><Search size={16} /><input placeholder="搜索词库" aria-label="搜索词库" value={wordFilter} onChange={event => setWordFilter(event.target.value)} /></label><button className="primary" onClick={() => { setNotice(''); dialog.current.showModal(); }}><Plus size={16} />添加词语</button></div>
         <div className="section-heading"><h2>{wordFilter ? '搜索结果' : '我的词库'}</h2><span>{wordFilter ? `${wordList.length} 个结果` : `${words.length} / 150`}</span></div>
         <section className="group word-cloud">{wordList.length ? wordList.map(term => <span className="word-tag" key={term}>{term}<button disabled={wordSaving} aria-label={`删除 ${term}`} title="删除词语" onClick={() => saveWords(words.filter(value => value !== term))}><X size={13} /></button></span>) : <div className="empty"><BookOpen size={28} /><strong>{wordFilter ? '没有找到这个词' : '让麦麦记住你的常用词'}</strong><p>{wordFilter ? '换一个关键词试试' : '支持一次粘贴多个词语'}</p></div>}</section>
-        <p className="footnote">词库保存在本机，下次听写生效。开启文字整理时，词库也会发送给你配置的 AI 服务。</p>
+        <p className="footnote">词库保存在本机，下次听写生效。{cloud && '使用豆包识别时，词库会与语音一起发送至豆包。'}开启文字整理时，词库也会发送给你配置的 AI 服务。</p>
         <dialog ref={dialog} className="word-dialog" aria-labelledby="word-dialog-title"><form onSubmit={addWords}><div className="dialog-heading"><span className="row-icon blue"><BookOpen size={19} /></span><h2 id="word-dialog-title">添加专有词</h2></div><p>输入标准写法，一行一个，也可以用逗号分隔。</p><textarea autoFocus aria-label="要添加的词语" placeholder={'例如：\nChatGPT\nTypeScript'} value={word} onChange={event => setWord(event.target.value)} rows={5} maxLength={12000} /><p className="footnote">最多 150 个词，每个词不超过 80 字。</p><p role="status" className="dialog-notice">{notice}</p><div className="dialog-actions"><button type="button" className="secondary" disabled={wordSaving} onClick={() => dialog.current.close()}>取消</button><button type="submit" className="primary" disabled={wordSaving || !word.trim()}>{wordSaving ? '保存中…' : '添加'}</button></div></form></dialog>
       </>}
       {tab === 'history' && <>
@@ -223,9 +239,25 @@ function Dashboard() {
           {!isWindows && !nativeReady && <div className="inline-help"><p>若重新连接后仍不可用，请在系统“输入监控”中允许麦麦，再重新连接。</p><button className="text-button" onClick={() => action(() => api.openInputPermissions())}>打开输入监控<ArrowUpRight size={13} /></button></div>}
           <SettingRow icon={ShieldCheck} color="green" title={isWindows ? '输入方式' : '自动输入权限'} detail={isWindows ? '识别完成后粘贴到当前光标处' : readiness.accessibility ? '辅助功能已允许' : '允许辅助功能，才能直接输入当前应用'}>{!isWindows && !readiness.accessibility ? <button className="secondary" onClick={() => action(() => api.openSystemPermissions())}>允许权限</button> : <Check size={17} className="good" />}</SettingRow>
         </div><p className="footnote">关闭窗口后，麦麦仍在{trayName}运行。Esc 可取消听写。</p></section>
-        <section><div className="section-heading"><h2>语音识别</h2></div><div className="group"><SettingRow icon={Cpu} color="green" title="Qwen3-ASR 1.7B" detail={isWindows ? '本机运行 · CPU / NVIDIA GPU' : '本机运行 · Apple 芯片'}><span className={`state-chip ${ready ? 'good' : ''}`}><span className={`status-dot ${ready ? 'ready' : 'pending'}`} />{ready ? '已就绪' : '未就绪'}</span></SettingRow><div className="model-actions"><span>{status.error ? '模型需要检查，请查看安装说明' : ready ? '支持中文、英文及混合表达' : '首次加载需要一点时间'}</span><button className="text-button" onClick={() => action(() => api.openSetupGuide())}>安装说明</button><button className="secondary" disabled={restarting} onClick={restart}>{restarting ? '启动中…' : '重启模型'}</button></div></div></section>
-        <section><div className="section-heading"><h2>文字整理</h2><span>可选</span></div><div className="group"><SettingRow icon={Sparkles} color="purple" title="智能整理" detail="整理标点与口头重复，保留原意"><Toggle checked={polish} onChange={togglePolish} label="智能文字整理" disabled={switchSaving} /></SettingRow><div className="inline-help"><p>开启后，识别文字和词库会发送给你配置的 AI 服务。录音仍留在本机；整理失败时使用原文。</p></div><details className="service-details"><summary>文字整理服务<span>{hasKey ? '已配置' : '待配置'}<ChevronRight size={14} /></span></summary><form className="service-form" onSubmit={saveConfig}><label>服务地址<input type="url" required placeholder="https://api.example.com/v1" value={config.ai_base_url} onChange={event => setConfig({ ...config, ai_base_url: event.target.value })} /></label><label>模型名称<input required value={config.ai_model} onChange={event => setConfig({ ...config, ai_model: event.target.value })} /></label><label>API 密钥<input type="password" autoComplete="off" placeholder={hasKey ? '已配置，留空保持不变' : '请输入 API 密钥'} value={config.ai_api_key} onChange={event => setConfig({ ...config, ai_api_key: event.target.value })} /></label><div className="dialog-actions"><button className="primary" disabled={saving}>{saving ? '保存中…' : '保存设置'}</button></div></form></details></div></section>
-        <div className="about"><img src="./macmic.svg" width="28" height="28" alt="" /><span>麦麦 macmic<span>让表达，自然发生 · {window.constants?.VERSION || '0.2.0'}</span></span></div>
+        <section><div className="section-heading"><h2>语音识别</h2><span>{cloud ? '当前使用豆包' : '当前使用本地模型'}</span></div><div className="group">
+          <form className="asr-form" onSubmit={saveAsr}>
+            <fieldset className="provider-options" disabled={asrSaving}><legend className="visually-hidden">识别方式</legend>
+              <label className={asr.provider === 'local' ? 'selected' : ''}><input type="radio" name="asr-provider" value="local" checked={asr.provider === 'local'} onChange={() => setAsr(value => ({ ...value, provider: 'local' }))} /><Cpu size={18} /><span><strong>本地模型</strong><small>设备内识别，无需联网</small></span></label>
+              <label className={asr.provider === 'doubao' ? 'selected' : ''}><input type="radio" name="asr-provider" value="doubao" checked={asr.provider === 'doubao'} onChange={() => setAsr(value => ({ ...value, provider: 'doubao' }))} /><Cloud size={18} /><span><strong>豆包语音</strong><small>云端识别，边说边处理</small></span></label>
+            </fieldset>
+            {asr.provider === 'doubao' ? <div className="service-form asr-service-form">
+              <p className="asr-disclosure"><ShieldCheck size={15} /><span>使用时，录音和你的专有词库会发送至豆包语音服务。需要网络；服务费用按你的账号计费。</span></p>
+              <label>App ID<input required autoComplete="off" placeholder="豆包语音应用的 App ID" value={asr.appKey} onChange={event => setAsr(value => ({ ...value, appKey: event.target.value }))} /></label>
+              <label>API 密钥<input type="password" required={!asr.hasApiKey} autoComplete="off" placeholder={asr.hasApiKey ? '已配置，留空保持不变' : '请输入豆包语音 API Key'} value={asr.apiKey} onChange={event => setAsr(value => ({ ...value, apiKey: event.target.value }))} /></label>
+              <details className="asr-advanced"><summary>服务配置</summary><label>资源 ID<input required value={asr.resourceId} onChange={event => setAsr(value => ({ ...value, resourceId: event.target.value }))} /></label></details>
+              <p className="footnote">密钥保存在这台电脑，留空可保留现有密钥。连接会在开始听写时检查。</p>
+            </div> : <div className="asr-local-summary"><Cpu size={16} /><span>Qwen3-ASR 1.7B · {isWindows ? '本机 CPU / NVIDIA GPU' : 'Apple 芯片加速'}</span></div>}
+            <div className="asr-save"><button className="primary" disabled={asrSaving}>{asrSaving ? '保存中…' : '保存识别设置'}</button></div>
+          </form>
+          {!cloud && <div className="model-actions"><span>{status.error ? '模型需要检查，请查看安装说明' : ready ? '本地模型已就绪' : '首次加载需要一点时间'}</span><button className="text-button" onClick={() => action(() => api.openSetupGuide())}>安装说明</button><button className="secondary" disabled={restarting} onClick={restart}>{restarting ? '启动中…' : '重启模型'}</button></div>}
+        </div></section>
+        <section><div className="section-heading"><h2>文字整理</h2><span>可选</span></div><div className="group"><SettingRow icon={Sparkles} color="purple" title="智能整理" detail="整理标点与口头重复，保留原意"><Toggle checked={polish} onChange={togglePolish} label="智能文字整理" disabled={switchSaving} /></SettingRow><div className="inline-help"><p>开启后，识别文字和词库会发送给你配置的 AI 服务。文字整理不发送录音；整理失败时使用原文。</p></div><details className="service-details"><summary>文字整理服务<span>{hasKey ? '已配置' : '待配置'}<ChevronRight size={14} /></span></summary><form className="service-form" onSubmit={saveConfig}><label>服务地址<input type="url" required placeholder="https://api.example.com/v1" value={config.ai_base_url} onChange={event => setConfig({ ...config, ai_base_url: event.target.value })} /></label><label>模型名称<input required value={config.ai_model} onChange={event => setConfig({ ...config, ai_model: event.target.value })} /></label><label>API 密钥<input type="password" autoComplete="off" placeholder={hasKey ? '已配置，留空保持不变' : '请输入 API 密钥'} value={config.ai_api_key} onChange={event => setConfig({ ...config, ai_api_key: event.target.value })} /></label><div className="dialog-actions"><button className="primary" disabled={saving}>{saving ? '保存中…' : '保存设置'}</button></div></form></details></div></section>
+        <div className="about"><img src="./macmic.svg" width="28" height="28" alt="" /><span>麦麦 macmic<span>让表达，自然发生 · {window.constants?.VERSION || '0.3.0'}</span></span></div>
       </div>}
       </div>
     </main>{notice && <div className="notice" role="status">{notice}</div>}

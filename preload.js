@@ -3,6 +3,17 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld("electronAPI", {
+  onAsrStreamError: callback => {
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('asr-stream-error', listener);
+    return () => ipcRenderer.removeListener('asr-stream-error', listener);
+  },
+  getAsrSettings: () => ipcRenderer.invoke('get-asr-settings'),
+  saveAsrSettings: settings => ipcRenderer.invoke('save-asr-settings', settings),
+  startAsrStream: id => ipcRenderer.invoke('start-asr-stream', id),
+  sendAsrAudio: (id, pcm) => ipcRenderer.send('asr-stream-audio', id, pcm),
+  finishAsrStream: id => ipcRenderer.invoke('finish-asr-stream', id),
+  cancelAsrStream: id => ipcRenderer.invoke('cancel-asr-stream', id),
   getReadiness: () => ipcRenderer.invoke('get-readiness'),
   setLoginStart: enabled => ipcRenderer.invoke('set-login-start', enabled),
   repairShortcuts: () => ipcRenderer.invoke('repair-shortcuts'),
@@ -174,7 +185,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 // 添加一些实用的常量
 contextBridge.exposeInMainWorld("constants", {
   APP_NAME: "麦麦 (macmic)",
-  VERSION: "0.2.0",
+  VERSION: "0.3.0",
   SUPPORTED_AUDIO_FORMATS: ["wav", "mp3", "m4a", "flac"],
   SUPPORTED_EXPORT_FORMATS: ["txt", "docx", "pdf", "json"],
   PLATFORM: process.platform,

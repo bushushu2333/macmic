@@ -30,6 +30,7 @@ function harness(options = {}) {
     }
   }
   const api = {
+    async getAsrSettings() { return { provider: 'local' }; },
     async voiceUIState() {}, onHotkeyTriggered(fn) { hotkey = fn; return () => {}; },
     onToggleDictation() { return () => {}; }, onCancelVoice() { return () => {}; },
     async registerHotkey() { return { success: true }; },
@@ -58,7 +59,7 @@ function harness(options = {}) {
 }
 (async () => {
   let test = harness({ deferMedia: true });
-  test.toggle(); test.voice.cancel(); test.media(); await tick();
+  test.toggle(); await tick(); test.voice.cancel(); test.media(); await tick();
   assert.equal(test.state(), 'idle'); assert.equal(test.calls.transcribe, 0); assert.ok(test.calls.tracksStopped > 0); test.close();
   test = harness(); test.toggle(); await until(() => test.state() === 'recording');
   test.voice.cancel(); await tick(); assert.equal(test.calls.transcribe, 0); assert.equal(test.calls.paste.length, 0); test.close();

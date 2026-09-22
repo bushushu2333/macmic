@@ -2,17 +2,21 @@
   <img src="assets/macmic.svg" width="88" alt="macmic logo" />
   <h1>macmic · 麦麦</h1>
   <p><strong>说出来，就好。</strong></p>
-  <p>给 macOS 和 Windows 的本地语音输入工具。</p>
-  <p>Qwen3-ASR · MLX / PyTorch · 实时波形 · 专有词库</p>
+  <p>给 macOS 和 Windows 的语音输入工具。</p>
+  <p>Qwen3-ASR / 豆包流式语音 · 毛玻璃界面 · 实时波形 · 专有词库</p>
 </div>
 
 麦麦把你的声音转成文字，输入到当前光标所在的位置。平时留在菜单栏 / 系统托盘，录音时出现一个简洁的波形浮条，完成后自动收起。
 
-语音识别在本机运行。文字整理是可选功能，默认关闭；开启后，识别出的文字会发送到你自行配置的 OpenAI-compatible 服务，语音文件不会发送给该服务。
+默认使用本机 Qwen3-ASR，也可在设置中选择豆包流式语音并填写自己的凭据。选择豆包后，录音和专有词库会发送到火山引擎语音服务；不需要安装 Python 或本地模型。麦麦不会在两种识别方式间自动切换。
+
+文字整理是独立的可选功能，默认关闭；开启后，识别文字和词库会发送到你配置的 OpenAI-compatible 服务，录音不会发送给文字整理服务。
 
 ## 能做什么
 
 - **本地识别**：两端均使用 Qwen3-ASR 1.7B；Mac 通过 MLX 使用 Apple GPU，Windows 使用 PyTorch，默认 CPU。
+- **可选豆包流式识别**：边录音边发送，结束时获得最终识别结果；短句也使用最终精修结果。需要自己的火山引擎语音账户和额度。
+- **毛玻璃界面**：Mac 原生模糊侧栏、统一圆角与留白，Windows 使用同一布局与半透明视觉。
 - **安静的录音浮条**：真实麦克风波形、录音计时，保留当前应用的键盘焦点。
 - **全局输入**：快捷键或菜单栏开始/结束；Esc 取消，取消后的迟到结果不会再输入。
 - **专有词库**：人名、品牌和术语可自行添加，供识别和文字整理参考。
@@ -20,7 +24,7 @@
 - **输入记录**：在本机查看最近 100 条记录，复制文字、对照识别原文。
 - **后台常驻**：关闭/最小化面板后仍可输入，菜单栏提供退出入口。
 
-当前版本采用“录音结束后识别”的流程；波形实时显示，转录文字不是实时流式输出。单次录音最长 5 分钟。
+本地模式在录音结束后识别；豆包模式实时上传音频，结束后一次性输入最终文字，不在当前输入框中反复改写中间结果。单次录音最长 5 分钟。取消会停止后续发送并丢弃结果；已经发送到云端的音频无法撤回。
 
 ## 选择你的平台
 
@@ -29,7 +33,13 @@
 | macOS 14+ / Apple Silicon | MLX · 8-bit · Apple GPU | [Mac 安装说明](docs/MACOS.md) |
 | Windows 10/11 x64 | PyTorch · CPU；可选 NVIDIA CUDA | [Windows 安装说明](docs/WINDOWS.md) |
 
-两端共用页面、波形、词库和录音流程。Windows 安装包在 [Releases](https://github.com/bushushu2333/macmic/releases)；首次运行需另行安装本地模型。
+两端共用页面、波形、词库和录音流程。Windows 安装包在 [Releases](https://github.com/bushushu2333/macmic/releases)；本地模式需要另行安装模型，豆包模式只需填写凭据。
+
+## 豆包语音配置
+
+在“设置 → 语音识别”选择豆包，填写自己的 App ID、Access Key 和 Resource ID，保存后生效。默认资源 ID 为 `volc.seedasr.sauc.duration`，需与账户开通的服务匹配。凭据留空不会清除已保存的密钥。“已配置”表示信息已保存，实际可用性会在录音连接时检查。
+
+接口固定使用官方 `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async`，发送 16 kHz 单声道 PCM，每 200ms 一个音频块，并启用最终精修；详见 [火山引擎语音文档](https://www.volcengine.com/docs/6561/1354869)。网络中断或鉴权失败会显示错误，不会悄悄改走其他服务。调用费用取决于你的语音服务账户。
 
 ## Mac 环境要求
 
@@ -60,7 +70,7 @@ codesign --force --deep --sign - --entitlements entitlements.mac.plist 'dist-loc
 ditto 'dist-local/mac-arm64/麦麦.app' '/Applications/麦麦.app'
 ```
 
-先退出正在运行的麦麦，再更新 `/Applications` 中的应用。这里生成的是本机签名的开发构建，没有 Apple Developer ID 公证；不附带 Python 运行时和模型。换电脑时仍需在目标电脑执行 `pnpm setup:model`，不能只复制 `.app`。当前发行以源码为主。
+先退出正在运行的麦麦，再更新 `/Applications` 中的应用。这里生成的是本机签名的开发构建，没有 Apple Developer ID 公证；不附带 Python 运行时和模型。使用本地模式时，换电脑仍需在目标电脑执行 `pnpm setup:model`；豆包模式无需本地模型。当前发行以源码为主。
 
 首次安装或签名变化后，如自动输入没有生效，请检查“系统设置 → 隐私与安全性 → 辅助功能”中的麦麦权限。失败时文字会保存在输入记录，并尝试复制到剪贴板以便手动粘贴。
 
@@ -86,7 +96,8 @@ ditto 'dist-local/mac-arm64/麦麦.app' '/Applications/麦麦.app'
 
 - 词库、设置、转录历史保存在本机：Mac `~/Library/Application Support/macmic/transcriptions.db`；Windows `%APPDATA%\macmic\transcriptions.db`。
 - API 密钥目前保存在该本地数据库中，未接入系统凭据库。请勿公开数据库、配置导出或包含密钥的诊断文件。
-- 临时 WAV 在系统临时目录生成，识别请求结束后清理；异常强制退出可能留下临时文件。
+- 本地模式的临时 WAV 在系统临时目录生成，请求结束后清理；异常强制退出可能留下临时文件。豆包模式通过内存流式发送音频，不写临时 WAV。
+- 仅在明确选择豆包并开始录音后连接语音服务。豆包 API 密钥仅在主进程使用，不回传页面。选择豆包会发送录音和词库。
 - 开启文字整理后，转录文本及词库会发送到所配置的服务；关闭后无需该服务。
 - 没有内置遥测。仓库不包含个人词库、输入历史、音频、模型权重或 API 密钥。
 
@@ -102,7 +113,7 @@ node scripts/test-local-asr.cjs /path/to/speech.wav
 
 测试也覆盖原生 / F19 重复事件去重、备用快捷键冲突和睡眠后重连。macOS 构建会编译 Swift 监听器并测试轻按、组合键和长按语义。测试涵盖录音取消、等待麦克风时取消、丢弃迟到结果、重复触发保护、文字整理失败回退、词库去重与边界。模型测试检查持久进程复用、并发初始化及无效音频处理。准确率与延迟仍取决于语音、词汇、电脑和可选的整理服务。
 
-主要代码：`src/App.jsx`（界面）、`src/hooks/useVoiceSession.js`（录音流程）、`src/helpers/localAsrManager.js`（模型进程）、`qwen_server.py`（本地推理）。GitHub Actions 在 Linux 和 Windows 运行回归测试，并在 Windows 构建 x64 安装包。另有手动触发的 Windows 模型集成测试，下载公开测试音频检验本地推理；这不替代真实电脑的麦克风、热键和跨应用粘贴体验测试。
+主要代码：`src/helpers/asrManager.js`（识别服务选择）、`src/helpers/doubaoAsr.js`（豆包协议与连接）、`assets/pcm-capture-worklet.js`（流式采样）、`src/App.jsx`（界面）、`src/hooks/useVoiceSession.js`（录音流程）、`src/helpers/localAsrManager.js`（模型进程）、`qwen_server.py`（本地推理）。GitHub Actions 在 Linux 和 Windows 运行回归测试，并在 Windows 构建 x64 安装包。另有手动触发的 Windows 模型集成测试，下载公开测试音频检验本地推理；这不替代真实电脑的麦克风、热键和跨应用粘贴体验测试。
 
 ## 来源与许可
 
