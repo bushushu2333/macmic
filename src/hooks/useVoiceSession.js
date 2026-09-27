@@ -235,6 +235,8 @@ export function useVoiceSession() {
       if (!current()) { abortCloud(item); release(item); return; }
       if (error.name === 'NotAllowedError') {
         abortCloud(item); release(item); transition('error', '请允许麦麦使用麦克风');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        abortCloud(item); release(item); transition('error', '未检测到麦克风，请连接麦克风设备');
       } else failed(item, error);
     }
   }, [abortCloud, acceptResult, api, failed, finish, release, transition]);
