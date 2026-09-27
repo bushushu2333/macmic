@@ -149,6 +149,7 @@ const applyStoredButtonBindings = () => buttonBindings.apply(
   {
     dictation: () => hotkeyManager.triggerDictation(),
     cancel: () => windowManager.mainWindow?.webContents.send("cancel-voice"),
+    finish: () => windowManager.mainWindow?.webContents.send("finish-voice"),
     polish_toggle: () => {
       const enabled = databaseManager.getSetting("enable_ai_optimization", false);
       databaseManager.setSetting("enable_ai_optimization", !enabled);

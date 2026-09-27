@@ -27,6 +27,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on('cancel-voice', listener);
     return () => ipcRenderer.removeListener('cancel-voice', listener);
   },
+  onFinishVoice: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('finish-voice', listener);
+    return () => ipcRenderer.removeListener('finish-voice', listener);
+  },
   // 窗口控制
   hideWindow: () => ipcRenderer.invoke("hide-window"),
   showWindow: () => ipcRenderer.invoke("show-window"),

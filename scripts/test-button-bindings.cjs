@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const { BUTTON_ACTIONS, DEFAULT_BUTTON_BINDINGS, eventToAccelerator, normalizeBindings, formatAccelerator } = require('../src/utils/accelerator.mjs');
 
 // ---- accelerator.js pure helpers ----
-assert.deepEqual(Object.keys(BUTTON_ACTIONS), ['dictation', 'cancel', 'polish_toggle']);
+assert.deepEqual(Object.keys(BUTTON_ACTIONS), ['dictation', 'cancel', 'finish', 'polish_toggle']);
 assert.equal(eventToAccelerator({ code: 'F13', repeat: false, isComposing: false }), 'F13');
 assert.equal(eventToAccelerator({ code: 'KeyA', metaKey: true, shiftKey: true }), 'CommandOrControl+Shift+A');
 assert.equal(eventToAccelerator({ code: 'Digit5', ctrlKey: true, altKey: true }), 'Control+Alt+5');
@@ -41,7 +41,7 @@ function harness(denied = []) {
   return { manager, callbacks, blocked };
 }
 
-const actions = { dictation: () => {}, cancel: () => {}, polish_toggle: () => {} };
+const actions = { dictation: () => {}, cancel: () => {}, finish: () => {}, polish_toggle: () => {} };
 let h = harness(['F14']);
 let statuses = h.manager.apply(normalizeBindings(DEFAULT_BUTTON_BINDINGS), actions);
 assert.deepEqual(statuses.map(s => s.ok), [true, false, true], 'a denied accelerator reports failure instead of throwing');

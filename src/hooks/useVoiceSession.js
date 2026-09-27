@@ -246,11 +246,13 @@ export function useVoiceSession() {
   useEffect(() => {
     if (!api) return;
     const off = [api.onHotkeyTriggered(toggle), api.onToggleDictation(toggle), api.onCancelVoice(cancel)];
+    // 外设"发送"键：只在录音中收尾上屏，空闲时安全空操作
+    if (api.onFinishVoice) off.push(api.onFinishVoice(finish));
     api.registerHotkey(window.constants?.DEFAULT_HOTKEY || 'F19').then(result => {
       if (result?.success === false) transition('error', '快捷键注册失败，请重启麦麦');
     });
     return () => off.forEach(dispose => dispose());
-  }, [api, toggle, cancel, transition]);
+  }, [api, toggle, cancel, finish, transition]);
   useEffect(() => api?.onAsrStreamError?.(({ id, error }) => {
     const item = session.current;
     if (item?.provider !== 'doubao' || item.streamId !== id

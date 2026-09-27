@@ -7,15 +7,17 @@
 const BUTTON_ACTIONS = {
   dictation: '开始 / 结束听写',
   cancel: '取消本次听写',
+  finish: '完成并输入（发送）',
   polish_toggle: '开启 / 关闭文字整理',
 };
 
 // Suggested for programmable remotes (翻页器 P 档): F13-F24 reach every app
 // through globalShortcut yet collide with nothing on a normal keyboard.
+// The default three mirror a remote's 录音 / 删除 / 发送 layout.
 const DEFAULT_BUTTON_BINDINGS = [
   { id: 'button-1', accelerator: 'F13', action: 'dictation' },
   { id: 'button-2', accelerator: 'F14', action: 'cancel' },
-  { id: 'button-3', accelerator: 'F15', action: 'polish_toggle' },
+  { id: 'button-3', accelerator: 'F15', action: 'finish' },
 ];
 
 const MAX_BUTTON_BINDINGS = 6;
