@@ -221,3 +221,7 @@ svg { flex-shrink: 0; }
 .asr-local-summary { display: flex; align-items: center; gap: 7px; padding: 0 14px; font-size: 11px; color: var(--secondary); }
 .asr-save { display: flex; justify-content: flex-end; padding: 14px; }
 .quiet-note > span { min-width: 0; }
+
+/* 外设适配层：麦克风设备下拉 */
+.device-select { min-width: 170px; max-width: 260px; height: 32px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 12px; padding: 0 8px; }
+.device-select:focus { outline: none; border-color: #87b4ed; }

@@ -10,6 +10,8 @@ class IPCHandlers {
     this.windowManager = managers.windowManager;
     this.hotkeyManager = managers.hotkeyManager;
     this.nativeShortcut = managers.nativeShortcut;
+    this.buttonBindings = managers.buttonBindings;
+    this.applyStoredButtonBindings = managers.applyStoredButtonBindings;
     this.logger = managers.logger; // 添加logger引用
 
     // 跟踪F2热键注册状态
@@ -439,6 +441,39 @@ class IPCHandlers {
       } catch (error) {
         this.logger.error("获取当前热键失败:", error);
         return "F19";
+      }
+    });
+
+    // 外设适配层：翻页器/小键盘按键绑定
+    ipcMain.handle("get-button-bindings", () => this.getButtonBindingsState());
+
+    ipcMain.handle("apply-button-bindings", (event, bindings) => {
+      try {
+        const { normalizeBindings } = require("../utils/accelerator.mjs");
+        const next = normalizeBindings(Array.isArray(bindings) ? bindings : []);
+        this.databaseManager.setSetting("button_bindings", next);
+        this.applyStoredButtonBindings();
+        return this.getButtonBindingsState();
+      } catch (error) {
+        this.logger.error("保存外设按键绑定失败:", error);
+        return { error: error.message };
+      }
+    });
+
+    // 按键录制期间必须腾空全局快捷键，否则已被占用的键（如 F13）不会
+    // 以 keydown 的形式到达设置窗口。原生 Alt/右Command 监听不受影响。
+    ipcMain.handle("set-button-capture-mode", (event, enabled) => {
+      try {
+        if (enabled) {
+          require("electron").globalShortcut.unregisterAll();
+        } else {
+          this.hotkeyManager.recover();
+          this.applyStoredButtonBindings();
+        }
+        return { success: true };
+      } catch (error) {
+        this.logger.error("切换按键录制模式失败:", error);
+        return { success: false, error: error.message };
       }
     });
 
@@ -1298,6 +1333,14 @@ ${text}
   // 清理处理器
   removeAllHandlers() {
     ipcMain.removeAllListeners();
+  }
+
+  getButtonBindingsState() {
+    const { DEFAULT_BUTTON_BINDINGS, normalizeBindings } = require("../utils/accelerator.mjs");
+    const bindings = normalizeBindings(
+      this.databaseManager.getSetting("button_bindings", DEFAULT_BUTTON_BINDINGS)
+    );
+    return { bindings, statuses: this.buttonBindings?.statuses || [] };
   }
 }
 

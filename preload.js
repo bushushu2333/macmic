@@ -85,6 +85,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   unregisterHotkey: (hotkey) => ipcRenderer.invoke("unregister-hotkey", hotkey),
   getCurrentHotkey: () => ipcRenderer.invoke("get-current-hotkey"),
 
+  // 外设适配层：翻页器/小键盘按键绑定
+  getButtonBindings: () => ipcRenderer.invoke("get-button-bindings"),
+  applyButtonBindings: (bindings) => ipcRenderer.invoke("apply-button-bindings", bindings),
+  setButtonCaptureMode: (enabled) => ipcRenderer.invoke("set-button-capture-mode", enabled),
+
   // F2热键管理
   registerF2Hotkey: () => ipcRenderer.invoke("register-f2-hotkey"),
   unregisterF2Hotkey: () => ipcRenderer.invoke("unregister-f2-hotkey"),
@@ -185,7 +190,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 // 添加一些实用的常量
 contextBridge.exposeInMainWorld("constants", {
   APP_NAME: "麦麦 (macmic)",
-  VERSION: "0.3.1",
+  VERSION: "0.4.0",
   SUPPORTED_AUDIO_FORMATS: ["wav", "mp3", "m4a", "flac"],
   SUPPORTED_EXPORT_FORMATS: ["txt", "docx", "pdf", "json"],
   PLATFORM: process.platform,

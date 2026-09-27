@@ -153,11 +153,25 @@ export function useVoiceSession() {
       item.provider = settings.provider;
       if (item.provider === 'doubao') transition('starting', '正在连接豆包语音');
       if (item.provider === 'doubao' && !settings.configured) throw new Error('请先在设置中配置豆包语音');
-      item.stream = await navigator.mediaDevices.getUserMedia({ audio: {
+      // 外设适配：优先使用设置里锁定的麦克风（如 DJI 接收器），不在线时回退系统默认
+      const audio = {
         sampleRate: 16000, channelCount: 1, echoCancellation: true,
         noiseSuppression: true, autoGainControl: true
-      } });
+      };
+      const lockedDevice = await api.getSetting('audio_input_device_id', '');
+      const openStream = locked => navigator.mediaDevices.getUserMedia({ audio: locked ? { ...audio, deviceId: { exact: locked } } : audio });
+      try {
+        item.stream = await openStream(lockedDevice);
+      } catch (error) {
+        if (!lockedDevice || !['NotFoundError', 'OverconstrainedError', 'NotReadableError'].includes(error.name)) throw error;
+        item.fallbackDevice = true;
+        item.stream = await openStream(null);
+      }
       if (!current()) { release(item); return; }
+      if (item.fallbackDevice) {
+        api.log('warn', '锁定的麦克风不在线，本次使用系统默认麦克风，设备接入后自动恢复');
+        transition('starting', '所选麦克风不在线，已用系统默认');
+      }
       item.context = new AudioContext({ sampleRate: 16000 });
       await item.context.resume();
       if (!current()) { release(item); return; }

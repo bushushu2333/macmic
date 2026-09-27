@@ -1,7 +1,8 @@
 // macmic modifications Copyright 2026 bushushu2333. Derived from yan5xu/ququ; see NOTICE and LICENSE.
 import { useEffect, useRef, useState } from 'react';
-import { AudioLines, ArrowUpRight, Check, ChevronRight, Copy, History, Mic, Settings2, Sparkles, X, BookOpen, Plus, LoaderCircle, Cpu, CheckCheck, Command, Search, ShieldCheck, Power, Cloud } from 'lucide-react';
+import { AudioLines, ArrowUpRight, Check, ChevronRight, Copy, History, Keyboard, Mic, Settings2, Sparkles, X, BookOpen, Plus, LoaderCircle, Cpu, CheckCheck, Command, Search, ShieldCheck, Power, Cloud } from 'lucide-react';
 import { useVoiceSession } from './hooks/useVoiceSession';
+import { BUTTON_ACTIONS, formatAccelerator, eventToAccelerator } from './utils/accelerator';
 import './voice.css';
 
 const isWindows = window.constants?.PLATFORM === 'win32';
@@ -87,6 +88,11 @@ function Dashboard() {
   const [restarting, setRestarting] = useState(false);
   const [switchSaving, setSwitchSaving] = useState(false);
   const [recordError, setRecordError] = useState(false);
+  const [mics, setMics] = useState([]);
+  const [micId, setMicId] = useState('');
+  const [bindings, setBindings] = useState([]);
+  const [statuses, setStatuses] = useState([]);
+  const [capturing, setCapturing] = useState(null);
   const dialog = useRef(null);
   const flash = text => setNotice(text);
   useEffect(() => {
@@ -126,6 +132,48 @@ function Dashboard() {
     refresh(); const timer = setInterval(refresh, 5000);
     return () => { active = false; clearInterval(timer); };
   }, [api, tab]);
+  useEffect(() => {
+    if (!api) return;
+    api.getButtonBindings().then(value => {
+      if (value?.bindings) { setBindings(value.bindings); setStatuses(value.statuses || []); }
+    }).catch(() => {});
+    api.getSetting('audio_input_device_id', '').then(setMicId).catch(() => {});
+  }, [api, tab]);
+  useEffect(() => {
+    if (tab !== 'settings' || !navigator.mediaDevices?.enumerateDevices) return;
+    let active = true;
+    const refresh = () => navigator.mediaDevices.enumerateDevices()
+      .then(list => { if (active) setMics(list.filter(device => device.kind === 'audioinput')); })
+      .catch(() => {});
+    refresh();
+    navigator.mediaDevices.addEventListener?.('devicechange', refresh);
+    return () => { active = false; navigator.mediaDevices.removeEventListener?.('devicechange', refresh); };
+  }, [tab]);
+  useEffect(() => {
+    if (!capturing) return;
+    const finish = () => { setCapturing(null); api?.setButtonCaptureMode(false).catch(() => {}); };
+    const onKey = event => {
+      event.preventDefault(); event.stopPropagation();
+      if (event.key === 'Escape') { finish(); return; }
+      const accelerator = eventToAccelerator(event);
+      if (!accelerator) return;
+      if (bindings.some(binding => binding.id !== capturing && binding.accelerator === accelerator)) {
+        flash('这个按键已经绑定了其他动作'); finish(); return;
+      }
+      const next = bindings.map(binding => binding.id === capturing ? { ...binding, accelerator } : binding);
+      finish();
+      (async () => {
+        try {
+          const result = await api.applyButtonBindings(next);
+          if (result?.bindings) { setBindings(result.bindings); setStatuses(result.statuses || []); flash('外设按键已保存'); }
+          else flash(result?.error || '保存失败，请重试');
+        } catch { flash('保存失败，请重试'); }
+      })();
+    };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('blur', finish);
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('blur', finish); };
+  }, [capturing, bindings, api]);
   const action = async task => {
     try { await task(); } catch { flash('操作未完成，请再试一次'); }
   };
@@ -200,6 +248,22 @@ function Dashboard() {
     await action(async () => { const login = await api.setLoginStart(!readiness.login); setReadiness(value => ({ ...value, login })); });
     setSwitchSaving(false);
   };
+  const startCapture = id => {
+    setCapturing(id);
+    api?.setButtonCaptureMode(true).catch(() => {});
+  };
+  const cancelCapture = () => {
+    setCapturing(null);
+    api?.setButtonCaptureMode(false).catch(() => {});
+  };
+  const saveMicDevice = async deviceId => {
+    setMicId(deviceId);
+    try {
+      await api.setSetting('audio_input_device_id', deviceId);
+      await api.setSetting('audio_input_device_label', mics.find(device => device.deviceId === deviceId)?.label || '');
+      flash(deviceId ? '麦克风已锁定，不在线时自动改用系统默认' : '已恢复跟随系统麦克风');
+    } catch { flash('保存失败，请重试'); }
+  };
   return <div className={`workspace ${isWindows ? 'windows' : 'mac'}`}>
     <aside className="sidebar">
       <div className="sidebar-titlebar" />
@@ -258,6 +322,18 @@ function Dashboard() {
           {!cloud && <div className="model-actions"><span>{status.error ? '模型需要检查，请查看安装说明' : ready ? '本地模型已就绪' : '首次加载需要一点时间'}</span><button className="text-button" onClick={() => action(() => api.openSetupGuide())}>安装说明</button><button className="secondary" disabled={restarting} onClick={restart}>{restarting ? '启动中…' : '重启模型'}</button></div>}
         </div></section>
         <section><div className="section-heading"><h2>文字整理</h2><span>可选</span></div><div className="group"><SettingRow icon={Sparkles} color="purple" title="智能整理" detail="整理标点与口头重复，保留原意"><Toggle checked={polish} onChange={togglePolish} label="智能文字整理" disabled={switchSaving} /></SettingRow><div className="inline-help"><p>开启后，识别文字和词库会发送给你配置的 AI 服务。文字整理不发送录音；整理失败时使用原文。</p></div><details className="service-details"><summary>文字整理服务<span>{hasKey ? '已配置' : '待配置'}<ChevronRight size={14} /></span></summary><form className="service-form" onSubmit={saveConfig}><label>服务地址<input type="url" required placeholder="https://api.example.com/v1" value={config.ai_base_url} onChange={event => setConfig({ ...config, ai_base_url: event.target.value })} /></label><label>模型名称<input required value={config.ai_model} onChange={event => setConfig({ ...config, ai_model: event.target.value })} /></label><label>API 密钥<input type="password" autoComplete="off" placeholder={hasKey ? '已配置，留空保持不变' : '请输入 API 密钥'} value={config.ai_api_key} onChange={event => setConfig({ ...config, ai_api_key: event.target.value })} /></label><div className="dialog-actions"><button className="primary" disabled={saving}>{saving ? '保存中…' : '保存设置'}</button></div></form></details></div></section>
+        <section><div className="section-heading"><h2>麦克风与外设</h2><span>选你的麦，绑你的键</span></div><div className="group">
+          <div className="setting-row"><span className="row-icon orange"><Mic size={16} /></span><div className="row-label"><strong>麦克风设备</strong><p>{micId ? '已锁定，设备不在线时自动改用系统默认' : '跟随系统默认输入设备'}</p></div><div className="row-action"><select className="device-select" aria-label="选择麦克风设备" value={micId} onChange={event => saveMicDevice(event.target.value)}><option value="">系统默认</option>{mics.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || `麦克风 ${index + 1}`}</option>)}</select></div></div>
+          {bindings.map(binding => {
+            const state = statuses.find(item => item.accelerator === binding.accelerator);
+            const capturingThis = capturing === binding.id;
+            return <SettingRow key={binding.id} icon={Keyboard} color="purple" title={BUTTON_ACTIONS[binding.action]} detail={capturingThis ? '按下要绑定的按键，Esc 取消' : binding.accelerator ? `当前按键 ${formatAccelerator(binding.accelerator, !isWindows)}` : '未绑定'}>
+              <span className={state && !state.ok ? 'value' : 'value good'}>{state ? (state.ok ? '已生效' : '被占用') : ''}</span>
+              <button className="secondary" onClick={() => (capturingThis ? cancelCapture() : startCapture(binding.id))}>{capturingThis ? '取消' : '改键'}</button>
+            </SettingRow>;
+          })}
+          <p className="footnote">翻页器/三键小键盘在厂商软件里把按键设成 F13、F14、F15，再点「改键」按下对应键即可；显示「被占用」就换一个键。DJI 等外接麦克风接入后，在上方锁定它的设备名。</p>
+        </div></section>
         <div className="about"><img src="./macmic.svg" width="28" height="28" alt="" /><span>麦麦 macmic<span>让表达，自然发生 · {window.constants?.VERSION || '0.3.1'}</span></span></div>
       </div>}
       </div>

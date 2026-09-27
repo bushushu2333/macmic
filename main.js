@@ -136,6 +136,27 @@ if (databaseManager.getSetting('speech_vocabulary') === null) {
   databaseManager.setSetting('speech_vocabulary', DEFAULT_VOCABULARY);
 }
 
+// 外设适配层：翻页器/小键盘等 HID 按键绑定（复用听写与取消的现有通道）
+const ButtonBindings = require("./src/helpers/buttonBindings");
+const { DEFAULT_BUTTON_BINDINGS, normalizeBindings } = require("./src/utils/accelerator.mjs");
+const buttonBindings = new ButtonBindings(logger);
+const showPolishNotice = (enabled) => {
+  try { new (require("electron").Notification)({ title: "麦麦", body: enabled ? "文字整理已开启" : "文字整理已关闭" }).show(); }
+  catch (error) { logger.warn("通知不可用:", error.message); }
+};
+const applyStoredButtonBindings = () => buttonBindings.apply(
+  normalizeBindings(databaseManager.getSetting("button_bindings", DEFAULT_BUTTON_BINDINGS)),
+  {
+    dictation: () => hotkeyManager.triggerDictation(),
+    cancel: () => windowManager.mainWindow?.webContents.send("cancel-voice"),
+    polish_toggle: () => {
+      const enabled = databaseManager.getSetting("enable_ai_optimization", false);
+      databaseManager.setSetting("enable_ai_optimization", !enabled);
+      showPolishNotice(!enabled);
+    },
+  }
+);
+
 // 使用所有管理器初始化IPC处理器
 const ipcHandlers = new IPCHandlers({
   environmentManager,
@@ -145,6 +166,8 @@ const ipcHandlers = new IPCHandlers({
   windowManager,
   hotkeyManager,
   nativeShortcut,
+  buttonBindings,
+  applyStoredButtonBindings,
   logger, // 传递logger实例
 });
 
@@ -206,8 +229,9 @@ async function startApp() {
   }
 
   nativeShortcut.start();
+  applyStoredButtonBindings();
   powerMonitor.on('suspend', () => nativeShortcut.stop());
-  powerMonitor.on('resume', () => { hotkeyManager.recover(); nativeShortcut.restart(); });
+  powerMonitor.on('resume', () => { hotkeyManager.recover(); applyStoredButtonBindings(); nativeShortcut.restart(); });
   powerMonitor.on('unlock-screen', () => { hotkeyManager.registerDictation(); if (!nativeShortcut.isReady()) nativeShortcut.restart(); });
 
   // 设置托盘
