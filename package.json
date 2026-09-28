@@ -12,7 +12,7 @@
     "postinstall": "node scripts/install-app-deps.cjs",
     "build:renderer": "cd src && vite build",
     "preview": "cd src && vite preview",
-    "test": "node scripts/test-voice-session.cjs && node scripts/test-vocabulary.cjs && node scripts/test-platform.cjs && node scripts/test-shortcuts.cjs && node scripts/test-button-bindings.cjs && node scripts/test-native-shortcut.cjs && node scripts/test-asr-manager.cjs && node scripts/test-doubao-asr.cjs && node scripts/test-cloud-voice-session.cjs && node scripts/test-pcm-capture.cjs && node scripts/test-asr-ipc.cjs",
+    "test": "node scripts/test-voice-session.cjs && node scripts/test-vocabulary.cjs && node scripts/test-platform.cjs && node scripts/test-shortcuts.cjs && node scripts/test-button-bindings.cjs && node scripts/test-native-shortcut.cjs && node scripts/test-asr-manager.cjs && node scripts/test-doubao-asr.cjs && node scripts/test-cloud-voice-session.cjs && node scripts/test-asr-fallback.cjs && node scripts/test-pcm-capture.cjs && node scripts/test-asr-ipc.cjs",
     "setup:model": "sh scripts/install-qwen-runtime.sh",
     "build:mac": "pnpm run build:native && pnpm run build:renderer && node scripts/build-local-mac.cjs",
     "check:public": "python3 scripts/check-public-source.py",

@@ -213,6 +213,33 @@ class DoubaoAsr {
     return session.result.promise;
   }
 
+  // Batch helper for the local-model backup path: push one complete PCM16
+  // mono 16 kHz recording through a single streaming session. Feeding is
+  // paced against the send queue so long recordings never trip backpressure.
+  async transcribeBuffer(pcm) {
+    if (!Buffer.isBuffer(pcm) || pcm.length < 2 || pcm.length % 2 !== 0) throw asrError('AUDIO');
+    if (pcm.length > MAX_AUDIO_BYTES) throw asrError('TOO_LONG');
+    const id = randomUUID();
+    await this.start(id);
+    const session = this.session;
+    try {
+      let offset = 0;
+      while (offset < pcm.length && !session.settled) {
+        const end = Math.min(offset + CHUNK_BYTES * 5, pcm.length);
+        this.send(id, pcm.subarray(offset, end));
+        offset = end;
+        while (!session.settled && session.queuedAudioBytes + session.pending.length > BYTES_PER_SECOND * 5) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+      if (session.settled) throw session.error || asrError('SESSION');
+      return await this.finish(id);
+    } catch (error) {
+      if (!session.settled) this.cancel(id);
+      throw error;
+    }
+  }
+
   cancel(sessionId) {
     if (!this.session || this.session.id !== sessionId || this.session.settled) return false;
     this._fail(this.session, 'CANCELLED');

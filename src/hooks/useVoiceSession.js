@@ -90,7 +90,10 @@ export function useVoiceSession() {
     try {
       await api.pasteText(text);
       if (!current()) return;
-      transition('done', fallback ? '已输入原文 · 整理暂不可用' : '已输入');
+      const backup = result.fallback === true;
+      transition('done', backup
+        ? (fallback ? '已输入原文 · 本地未就绪，转用豆包' : '已输入 · 本地未就绪，转用豆包')
+        : (fallback ? '已输入原文 · 整理暂不可用' : '已输入'));
       timer.current = setTimeout(() => { if (current()) transition('idle'); }, fallback ? 2200 : 1100);
     } catch {
       if (!current()) return;

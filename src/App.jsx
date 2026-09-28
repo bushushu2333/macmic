@@ -316,7 +316,7 @@ function Dashboard() {
               <label>API 密钥<input type="password" required={!asr.hasApiKey} autoComplete="off" placeholder={asr.hasApiKey ? '已配置，留空保持不变' : '请输入豆包语音 API Key'} value={asr.apiKey} onChange={event => setAsr(value => ({ ...value, apiKey: event.target.value }))} /></label>
               <details className="asr-advanced"><summary>服务配置</summary><label>资源 ID<input required value={asr.resourceId} onChange={event => setAsr(value => ({ ...value, resourceId: event.target.value }))} /></label></details>
               <p className="footnote">密钥保存在这台电脑，留空可保留现有密钥。连接会在开始听写时检查。</p>
-            </div> : <div className="asr-local-summary"><Cpu size={16} /><span>Qwen3-ASR 1.7B · {isWindows ? '本机 CPU / NVIDIA GPU' : 'Apple 芯片加速'}</span></div>}
+            </div> : <div className="asr-local-summary"><Cpu size={16} /><span>Qwen3-ASR 1.7B · {isWindows ? '本机 CPU / NVIDIA GPU' : 'Apple 芯片加速'}{asr.configured ? ' · 豆包备用已配置' : ''}</span></div>}
             <div className="asr-save"><button className="primary" disabled={asrSaving}>{asrSaving ? '保存中…' : '保存识别设置'}</button></div>
           </form>
           {!cloud && <div className="model-actions"><span>{status.error ? '模型需要检查，请查看安装说明' : ready ? '本地模型已就绪' : '首次加载需要一点时间'}</span><button className="text-button" onClick={() => action(() => api.openSetupGuide())}>安装说明</button><button className="secondary" disabled={restarting} onClick={restart}>{restarting ? '启动中…' : '重启模型'}</button></div>}

@@ -4,6 +4,26 @@ const { normalizeVocabulary } = require('./vocabulary');
 const ASR_KEYS = new Set(['asr_provider', 'doubao_app_key', 'doubao_api_key', 'doubao_resource_id']);
 const RESOURCE_ID = 'volc.seedasr.sauc.duration';
 
+// Extract the raw PCM16 mono 16 kHz payload from a WAV the recorder produced.
+// Rejects anything else instead of sending malformed audio to the cloud.
+function extractPcmFromWav(input) {
+  const data = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  const fail = () => { throw new Error('录音数据格式不正确'); };
+  if (data.length < 44 || data.toString('ascii', 0, 4) !== 'RIFF' || data.toString('ascii', 8, 12) !== 'WAVE') fail();
+  let offset = 12, format = null, pcm = null;
+  while (offset + 8 <= data.length) {
+    const id = data.toString('ascii', offset, offset + 4);
+    const size = data.readUInt32LE(offset + 4);
+    const body = offset + 8;
+    if (id === 'fmt ') {
+      format = { channels: data.readUInt16LE(body + 2), rate: data.readUInt32LE(body + 4), bits: data.readUInt16LE(body + 14) };
+    } else if (id === 'data') { pcm = data.subarray(body, body + size); break; }
+    offset = body + size + (size % 2);
+  }
+  if (!pcm || !format || format.channels !== 1 || format.rate !== 16000 || format.bits !== 16) fail();
+  return Buffer.from(pcm);
+}
+
 class AsrManager {
   constructor(logger, database, { local, cloud } = {}) {
     this.logger = logger;
@@ -67,7 +87,22 @@ class AsrManager {
   initializeAtStartup() { return this.provider === 'local' ? this.local.initializeAtStartup() : Promise.resolve(this.serverReady); }
   async transcribeAudio(data, options) {
     if (this.provider !== 'local') return { success: false, error: '豆包识别需要重新开始一次流式录音' };
-    return this.local.transcribeAudio(data, options);
+    let localResult;
+    try { localResult = await this.local.transcribeAudio(data, options); }
+    catch (error) { localResult = { success: false, error: error.message }; }
+    if (localResult?.success) return localResult;
+    // Explicitly configured backup: when the local model fails, retry the
+    // same recording through Doubao and mark the result so the UI discloses
+    // that this transcription left the machine.
+    if (this.getSettings().configured) {
+      try {
+        const result = await this.cloud.transcribeBuffer(extractPcmFromWav(data));
+        return { ...result, fallback: true };
+      } catch (error) {
+        this.logger?.warn('Doubao backup transcription failed', { code: error.code || null });
+      }
+    }
+    return localResult;
   }
   async startStream(id) {
     if (this.provider !== 'doubao' || !this.serverReady) throw new Error('请先配置并启用豆包语音');
